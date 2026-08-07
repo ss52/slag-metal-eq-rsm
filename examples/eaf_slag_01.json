@@ -1,0 +1,28 @@
+{
+  "temperature_K": 1823.15,
+  "P_CO_atm": 1.0,
+  "slag_wtpc": {
+    "SiO2": 27.495,
+    "CaO": 35.597,
+    "MgO": 1.999,
+    "Al2O3": 7.973,
+    "MnO": 4.762,
+    "TiO2": 0.725,
+    "P2O5": 0.0,
+    "FeO_total": 18.851,
+    "Cr2O3_total": 2.58
+  },
+  "metal_wtpc": {
+    "Cr": 0.038,
+    "Mn": 0.007,
+    "P": 0.069
+  },
+  "options": {
+    "cross_terms": "full",
+    "ti_handling": "exclude_renormalize",
+    "sio2_conversion": "workbook",
+    "iron_input": "FeO_total",
+    "chromium_input": "Cr2O3_total",
+    "a_Fe": "unity"
+  }
+}

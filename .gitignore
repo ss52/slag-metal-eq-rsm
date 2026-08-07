@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+.venv/
+
+# Local reference material and run artifacts (not for publication)
+# Proprietary / licensed reference PDFs and the internal Excel workbook
+# live in Docs/ locally but must not be pushed to a public repository.
+Docs/
+report.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

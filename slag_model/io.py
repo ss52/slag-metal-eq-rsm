@@ -1,0 +1,327 @@
+"""JSON input parsing, validation, and report building (PLAN.md sections 5, 9)."""
+
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from .data import (
+    CHROMIUM_INPUT_KEYS,
+    IRON_INPUT_KEYS,
+    METAL_INPUT_KEYS,
+)
+
+KNOWN_TOP_KEYS = {
+    "temperature_K",
+    "P_CO_atm",
+    "slag_wtpc",
+    "metal_wtpc",
+    "options",
+}
+
+INPUT_OXIDE_KEYS = {"SiO2", "CaO", "MgO", "Al2O3", "MnO", "TiO2", "P2O5"}
+ALL_INPUT_OXIDE_KEYS = INPUT_OXIDE_KEYS | set(IRON_INPUT_KEYS) | set(CHROMIUM_INPUT_KEYS)
+
+OPTION_KEYS = {
+    "cross_terms",
+    "ti_handling",
+    "sio2_conversion",
+    "fe2o3_conversion",
+    "al2o3_conversion",
+    "a_Fe",
+    "iron_input",
+    "chromium_input",
+}
+
+
+class InputError(ValueError):
+    """Raised when the input JSON violates the specification."""
+
+
+@dataclass
+class Options:
+    cross_terms: str = "full"
+    ti_handling: str = "exclude_renormalize"
+    sio2_conversion: str = "workbook"
+    fe2o3_conversion: tuple[float, float] | None = None
+    al2o3_conversion: tuple[float, float] | None = None
+    a_Fe: str = "unity"
+    iron_input: str = "FeO_total"
+    chromium_input: str = "Cr2O3_total"
+
+    def as_dict(self) -> dict:
+        return {
+            "cross_terms": self.cross_terms,
+            "ti_handling": self.ti_handling,
+            "sio2_conversion": self.sio2_conversion,
+            "fe2o3_conversion": list(self.fe2o3_conversion)
+            if self.fe2o3_conversion is not None
+            else "none",
+            "al2o3_conversion": list(self.al2o3_conversion)
+            if self.al2o3_conversion is not None
+            else "none",
+            "a_Fe": self.a_Fe,
+            "iron_input": self.iron_input,
+            "chromium_input": self.chromium_input,
+        }
+
+
+@dataclass
+class SlagModelConfig:
+    temperature_K: float
+    P_CO_atm: float
+    slag_wtpc: dict[str, float]
+    metal_wtpc: dict[str, float]
+    options: Options
+    warnings: list[str] = field(default_factory=list)
+
+
+def _parse_custom_conversion(v, name: str) -> tuple[float, float] | None:
+    if v is None or v == "none":
+        return None
+    if isinstance(v, dict):
+        try:
+            A = float(v["A"])
+            B = float(v["B"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise InputError(f"{name}: custom conversion must have numeric 'A' and 'B'") from exc
+        return (A, B)
+    raise InputError(f"{name} must be 'none' or an object with numeric 'A' and 'B'")
+
+
+def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[str]]:
+    raw = raw or {}
+    if not isinstance(raw, dict):
+        raise InputError("options must be a JSON object")
+    unknown = set(raw) - OPTION_KEYS
+    if unknown:
+        raise InputError(f"unknown option keys: {sorted(unknown)}")
+
+    cross_terms = raw.get("cross_terms", "full")
+    if cross_terms not in ("full", "major5"):
+        raise InputError(f"cross_terms must be 'full' or 'major5', got {cross_terms!r}")
+
+    ti_handling = raw.get("ti_handling", "exclude_renormalize")
+    if ti_handling not in ("exclude_renormalize", "as_excel"):
+        raise InputError(
+            f"ti_handling must be 'exclude_renormalize' or 'as_excel', got {ti_handling!r}"
+        )
+
+    sio2_conversion = raw.get("sio2_conversion", "workbook")
+    if sio2_conversion not in ("workbook", "banya"):
+        raise InputError(f"sio2_conversion must be 'workbook' or 'banya', got {sio2_conversion!r}")
+
+    a_Fe = raw.get("a_Fe", "unity")
+    if a_Fe not in ("unity", "xfe"):
+        raise InputError(f"a_Fe must be 'unity' or 'xfe', got {a_Fe!r}")
+
+    fe2o3 = _parse_custom_conversion(raw.get("fe2o3_conversion"), "fe2o3_conversion")
+    al2o3 = _parse_custom_conversion(raw.get("al2o3_conversion"), "al2o3_conversion")
+
+    if al2o3 is None:
+        warnings.append(
+            "Al2O3 conversion factor is TBD (PLAN.md 12.1): using A=0, B=0; "
+            "gamma_Al2O3 is on the R.S. scale."
+        )
+
+    iron_input = raw.get("iron_input", "FeO_total")
+    if iron_input not in ("FeO_total", "Fe_total"):
+        raise InputError(f"iron_input must be 'FeO_total' or 'Fe_total', got {iron_input!r}")
+
+    chromium_input = raw.get("chromium_input", "Cr2O3_total")
+    if chromium_input not in ("Cr2O3_total", "Cr_total"):
+        raise InputError(
+            f"chromium_input must be 'Cr2O3_total' or 'Cr_total', got {chromium_input!r}"
+        )
+
+    return Options(
+        cross_terms=cross_terms,
+        ti_handling=ti_handling,
+        sio2_conversion=sio2_conversion,
+        fe2o3_conversion=fe2o3,
+        al2o3_conversion=al2o3,
+        a_Fe=a_Fe,
+        iron_input=iron_input,
+        chromium_input=chromium_input,
+    ), set(raw.keys())
+
+
+def _validate_number(v, name: str, allow_negative: bool = False):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise InputError(f"{name} must be a number, got {type(v).__name__}")
+    if not allow_negative and v < 0:
+        raise InputError(f"{name} must be non-negative, got {v}")
+
+
+def parse_input(text: str) -> SlagModelConfig:
+    """Parse and validate a JSON input string (PLAN.md section 5)."""
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise InputError("input JSON must be a top-level object")
+
+    unknown_top = set(data) - KNOWN_TOP_KEYS
+    if unknown_top:
+        raise InputError(f"unknown top-level keys: {sorted(unknown_top)}")
+
+    # temperature / P_CO
+    T = float(data.get("temperature_K", 1823.15))
+    P_CO = float(data.get("P_CO_atm", 1.0))
+    _validate_number(T, "temperature_K")
+    _validate_number(P_CO, "P_CO_atm")
+    if T <= 0:
+        raise InputError("temperature_K must be positive")
+    if P_CO <= 0:
+        raise InputError("P_CO_atm must be positive")
+
+    # slag composition
+    slag = data.get("slag_wtpc")
+    if not isinstance(slag, dict) or len(slag) == 0:
+        raise InputError("slag_wtpc is required and must be a non-empty JSON object")
+    unknown_ox = set(slag) - ALL_INPUT_OXIDE_KEYS
+    if unknown_ox:
+        raise InputError(f"unknown slag keys: {sorted(unknown_ox)}")
+    for k, v in slag.items():
+        _validate_number(v, f"slag_wtpc.{k}")
+        if v < 0:
+            raise InputError(f"slag component {k} must be non-negative, got {v}")
+
+    n_iron = [k for k in IRON_INPUT_KEYS if k in slag]
+    if len(n_iron) != 1:
+        raise InputError("exactly one of FeO_total / Fe_total must be present")
+    n_cr = [k for k in CHROMIUM_INPUT_KEYS if k in slag]
+    if len(n_cr) != 1:
+        raise InputError("exactly one of Cr2O3_total / Cr_total must be present")
+    iron_key = n_iron[0]
+    cr_key = n_cr[0]
+    if slag[iron_key] <= 0:
+        raise InputError("slag iron content must be positive (slag must contain Fe)")
+
+    total_wt = sum(slag.values())
+    warnings: list[str] = []
+    if not (99.0 <= total_wt <= 101.0):
+        warnings.append(f"slag wt% sum is {total_wt:.2f} (expected 100 +/- 1.0)")
+
+    # metal composition
+    metal_raw = data.get("metal_wtpc", {})
+    if not isinstance(metal_raw, dict):
+        raise InputError("metal_wtpc must be a JSON object")
+    unknown_m = set(metal_raw) - set(METAL_INPUT_KEYS)
+    if unknown_m:
+        raise InputError(f"unknown metal keys: {sorted(unknown_m)}")
+    metal: dict[str, float] = {}
+    for k in METAL_INPUT_KEYS:
+        v = metal_raw.get(k, 0.0)
+        _validate_number(v, f"metal_wtpc.{k}")
+        metal[k] = float(v)
+
+    # options
+    options, explicit_opts = _parse_options(data.get("options"), warnings)
+
+    # derive / validate iron_input and chromium_input vs the keys actually present
+    if "iron_input" in explicit_opts:
+        if options.iron_input != iron_key:
+            raise InputError(
+                f"options.iron_input {options.iron_input!r} inconsistent with "
+                f"present input key {iron_key!r}"
+            )
+    else:
+        options.iron_input = iron_key
+    if "chromium_input" in explicit_opts:
+        if options.chromium_input != cr_key:
+            raise InputError(
+                f"options.chromium_input {options.chromium_input!r} inconsistent with "
+                f"present input key {cr_key!r}"
+            )
+    else:
+        options.chromium_input = cr_key
+
+    return SlagModelConfig(
+        temperature_K=T,
+        P_CO_atm=P_CO,
+        slag_wtpc=dict(slag),
+        metal_wtpc=metal,
+        options=options,
+        warnings=warnings,
+    )
+
+
+def load_input(path: str | Path) -> SlagModelConfig:
+    """Load and validate a JSON input file."""
+    p = Path(path)
+    if not p.exists():
+        raise InputError(f"input file not found: {p}")
+    text = p.read_text(encoding="utf-8")
+    return parse_input(text)
+
+
+def build_report(cfg: SlagModelConfig, result) -> dict:
+    """Build the JSON-serializable report from a converged SolveResult."""
+    from .data import CATION_TO_OXIDE
+
+    comps = []
+    for cation, oxide in CATION_TO_OXIDE.items():
+        if cation not in result.X:
+            continue
+        comps.append(
+            {
+                "oxide": oxide,
+                "X": result.X[cation],
+                "RTln_gamma_RS": result.rtln_gamma_rs[cation],
+                "DeltaG_conv": result.delta_g_conv[oxide],
+                "gamma": result.gamma[oxide],
+                "a": result.a_slag.get(oxide, 0.0),
+            }
+        )
+    if "Ti4+" in result.X:
+        comps.append(
+            {
+                "oxide": "TiO2",
+                "X": result.X["Ti4+"],
+                "RTln_gamma_RS": 0.0,
+                "DeltaG_conv": 0.0,
+                "gamma": 1.0,
+                "a": result.X["Ti4+"],
+            }
+        )
+
+    eq = {
+        "K_FeO": result.k_FeO,
+        "K_CO": result.k_CO,
+        "K_Cr": result.k_Cr,
+        "Q_over_K_FeO": result.q_over_k.get("FeO"),
+        "Q_over_K_CO": result.q_over_k.get("CO"),
+        "Q_over_K_Cr": result.q_over_k.get("Cr"),
+    }
+
+    return {
+        "input": {
+            "temperature_K": cfg.temperature_K,
+            "P_CO_atm": cfg.P_CO_atm,
+            "slag_wtpc": cfg.slag_wtpc,
+            "metal_wtpc": cfg.metal_wtpc,
+            "options": cfg.options.as_dict(),
+        },
+        "solution": {
+            "P_O2_atm": result.P_O2_atm,
+            "log10_P_O2": math.log10(result.P_O2_atm),
+            "r_Fe": result.r_Fe,
+            "r_Cr": result.r_Cr,
+            "iterations": result.iterations,
+            "split_wtpc": result.split.wt_split,
+            "components": comps,
+        },
+        "metal": {
+            "C_wtpc": result.C_wtpc,
+            "O_wtpc": result.O_wtpc,
+            "f_C": result.f_metal["C"],
+            "f_Cr": result.f_metal["Cr"],
+            "f_Mn": result.f_metal["Mn"],
+            "f_P": result.f_metal["P"],
+            "a_C": result.a_C,
+            "a_Cr": result.a_Cr,
+        },
+        "equilibrium": eq,
+        "warnings": cfg.warnings,
+    }
