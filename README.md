@@ -24,7 +24,7 @@ The model closes the slag–metal system with **one** oxygen potential $P_{O_2}$
    (Ban-ya 1993). Oxide-component activity coefficients follow from cation
    fractions $X_i$ and pair interaction energies $\alpha_{ij}$:
 
-$$ RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{\substack{j<k \\ j,k \ne i}} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k $$
+$$RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{j} \sum_{k} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k$$
 
    A linear conversion $\Delta G_{conv} = A + BT$ shifts the raw
    regular-solution coefficients onto the **pure-stable-oxide (Raoultian)
