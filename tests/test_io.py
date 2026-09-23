@@ -87,6 +87,59 @@ def test_negative_slag_value():
         parse_input(json.dumps(d))
 
 
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity"])
+def test_nonfinite_pressure_string_rejected(bad):
+    payload = {**VALID_JSON, "P_CO_atm": bad}
+    with pytest.raises(InputError, match=r"P_CO_atm.*finite"):
+        parse_input(json.dumps(payload))
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity"])
+def test_bare_json_nonfinite_constant_rejected(bad):
+    raw = json.dumps(VALID_JSON).replace('"P_CO_atm": 1.0', f'"P_CO_atm": {bad}')
+    with pytest.raises(InputError, match="non-finite"):
+        parse_input(raw)
+
+
+def test_huge_integer_float_overflow_has_field_context():
+    payload = {**VALID_JSON, "P_CO_atm": 10**400}
+    with pytest.raises(InputError, match=r"P_CO_atm.*finite"):
+        parse_input(json.dumps(payload))
+
+
+def test_nonfinite_composition_value_has_field_context():
+    raw = json.dumps(VALID_JSON).replace('"SiO2": 27.495', '"SiO2": 1e309')
+    with pytest.raises(InputError, match=r"slag_wtpc\.SiO2.*finite"):
+        parse_input(raw)
+
+
+def test_nonfinite_metal_value_has_field_context():
+    raw = json.dumps(VALID_JSON).replace('"Cr": 0.038', '"Cr": 1e309')
+    with pytest.raises(InputError, match=r"metal_wtpc\.Cr.*finite"):
+        parse_input(raw)
+
+
+@pytest.mark.parametrize(
+    ("option_name", "coefficient"),
+    [("fe2o3_conversion", "A"), ("al2o3_conversion", "B")],
+)
+def test_nonfinite_custom_conversion_value_has_field_context(option_name, coefficient):
+    custom = {
+        "A": 100.0,
+        "B": -0.1,
+        "standard_state": "custom reference state",
+    }
+    payload = {
+        **VALID_JSON,
+        "options": {**VALID_JSON["options"], option_name: custom},
+    }
+    raw = json.dumps(payload).replace(
+        f'"{coefficient}": {custom[coefficient]}', f'"{coefficient}": 1e309'
+    )
+    with pytest.raises(InputError, match=rf"{option_name}\.{coefficient}.*finite"):
+        parse_input(raw)
+
+
 def test_unknown_slag_key():
     d = {**VALID_JSON, "slag_wtpc": {**VALID_JSON["slag_wtpc"], "BOGUS": 1.0}}
     with pytest.raises(InputError, match="unknown slag keys"):

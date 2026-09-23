@@ -99,13 +99,12 @@ def _parse_custom_conversion(v, name: str) -> ConversionSpec | None:
         extra = set(v) - required
         if extra:
             raise InputError(f"{name} has unknown fields: {sorted(extra)}")
-        A, B = v["A"], v["B"]
-        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in (A, B)):
-            raise InputError(f"{name}: 'A' and 'B' must be numbers")
+        A = _finite_number(v["A"], f"{name}.A")
+        B = _finite_number(v["B"], f"{name}.B")
         standard_state = v["standard_state"]
         if not isinstance(standard_state, str) or not standard_state.strip():
             raise InputError(f"{name}: 'standard_state' must be a non-empty string")
-        return ConversionSpec(float(A), float(B), standard_state)
+        return ConversionSpec(A, B, standard_state)
     raise InputError(
         f"{name} must be 'none' or an object with numeric 'A', numeric 'B', "
         "and a non-empty 'standard_state'"
@@ -113,7 +112,8 @@ def _parse_custom_conversion(v, name: str) -> ConversionSpec | None:
 
 
 def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[str]]:
-    raw = raw or {}
+    if raw is None:
+        raw = {}
     if not isinstance(raw, dict):
         raise InputError("options must be a JSON object")
     unknown = set(raw) - OPTION_KEYS
@@ -169,16 +169,31 @@ def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[
     ), set(raw.keys())
 
 
-def _validate_number(v, name: str, allow_negative: bool = False):
-    if isinstance(v, bool) or not isinstance(v, (int, float)):
+def _finite_number(v, name: str, *, allow_numeric_string: bool = False) -> float:
+    allowed_types = (int, float, str) if allow_numeric_string else (int, float)
+    if isinstance(v, bool) or not isinstance(v, allowed_types):
         raise InputError(f"{name} must be a number, got {type(v).__name__}")
-    if not allow_negative and v < 0:
-        raise InputError(f"{name} must be non-negative, got {v}")
+    try:
+        value = float(v)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise InputError(f"{name} must be a finite number") from exc
+    if not math.isfinite(value):
+        raise InputError(f"{name} must be finite, got {v!r}")
+    return value
+
+
+def _reject_nonfinite_constant(value: str):
+    raise InputError(f"non-finite JSON number {value!r} is not allowed")
 
 
 def parse_input(text: str) -> SlagModelConfig:
     """Parse and validate a JSON input string (PLAN.md section 5)."""
-    data = json.loads(text)
+    try:
+        data = json.loads(text, parse_constant=_reject_nonfinite_constant)
+    except json.JSONDecodeError as exc:
+        raise InputError(
+            f"malformed JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
+        ) from exc
     if not isinstance(data, dict):
         raise InputError("input JSON must be a top-level object")
 
@@ -187,10 +202,10 @@ def parse_input(text: str) -> SlagModelConfig:
         raise InputError(f"unknown top-level keys: {sorted(unknown_top)}")
 
     # temperature / P_CO
-    T = float(data.get("temperature_K", 1823.15))
-    P_CO = float(data.get("P_CO_atm", 1.0))
-    _validate_number(T, "temperature_K")
-    _validate_number(P_CO, "P_CO_atm")
+    T = _finite_number(
+        data.get("temperature_K", 1823.15), "temperature_K", allow_numeric_string=True
+    )
+    P_CO = _finite_number(data.get("P_CO_atm", 1.0), "P_CO_atm", allow_numeric_string=True)
     if T <= 0:
         raise InputError("temperature_K must be positive")
     if P_CO <= 0:
@@ -203,10 +218,13 @@ def parse_input(text: str) -> SlagModelConfig:
     unknown_ox = set(slag) - ALL_INPUT_OXIDE_KEYS
     if unknown_ox:
         raise InputError(f"unknown slag keys: {sorted(unknown_ox)}")
+    normalized_slag: dict[str, float] = {}
     for k, v in slag.items():
-        _validate_number(v, f"slag_wtpc.{k}")
-        if v < 0:
-            raise InputError(f"slag component {k} must be non-negative, got {v}")
+        value = _finite_number(v, f"slag_wtpc.{k}")
+        if value < 0:
+            raise InputError(f"slag component {k} must be non-negative, got {value}")
+        normalized_slag[k] = value
+    slag = normalized_slag
 
     n_iron = [k for k in IRON_INPUT_KEYS if k in slag]
     if len(n_iron) != 1:
@@ -220,6 +238,8 @@ def parse_input(text: str) -> SlagModelConfig:
         raise InputError("slag iron content must be positive (slag must contain Fe)")
 
     total_wt = sum(slag.values())
+    if not math.isfinite(total_wt):
+        raise InputError("slag_wtpc total must be finite")
     warnings: list[str] = []
     if not (99.0 <= total_wt <= 101.0):
         warnings.append(f"slag wt% sum is {total_wt:.2f} (expected 100 +/- 1.0)")
@@ -234,8 +254,7 @@ def parse_input(text: str) -> SlagModelConfig:
     metal: dict[str, float] = {}
     for k in METAL_INPUT_KEYS:
         v = metal_raw.get(k, 0.0)
-        _validate_number(v, f"metal_wtpc.{k}")
-        metal[k] = float(v)
+        metal[k] = _finite_number(v, f"metal_wtpc.{k}")
 
     # options
     options, explicit_opts = _parse_options(data.get("options"), warnings)
@@ -273,7 +292,10 @@ def load_input(path: str | Path) -> SlagModelConfig:
     p = Path(path)
     if not p.exists():
         raise InputError(f"input file not found: {p}")
-    text = p.read_text(encoding="utf-8")
+    try:
+        text = p.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise InputError(f"input file is not valid UTF-8: {p}") from exc
     return parse_input(text)
 
 

@@ -7,7 +7,7 @@ import sys
 
 from .data import CATION_TO_OXIDE
 from .io import InputError, build_report, load_input
-from .solver import NonConvergenceError, solve
+from .solver import NonConvergenceError, NumericalStateError, solve
 
 
 def _print_report(report: dict) -> None:
@@ -115,16 +115,23 @@ def main(argv: list[str] | None = None) -> int:
         for w in cfg.warnings:
             print(f"warning: {w}", file=sys.stderr)
         result = solve(cfg)
-    except (InputError, NonConvergenceError) as exc:
+    except (InputError, NonConvergenceError, NumericalStateError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    report = build_report(cfg, result)
+    try:
+        report = build_report(cfg, result)
+        report_text = json.dumps(report, indent=2, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        message = f"error: report contains invalid numerical or serialization data: {exc}"
+        print(message, file=sys.stderr)
+        return 1
+
     _print_report(report)
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
-            json.dump(report, fh, indent=2)
+            fh.write(report_text)
         print(f"report written to {args.output}")
 
     return 0

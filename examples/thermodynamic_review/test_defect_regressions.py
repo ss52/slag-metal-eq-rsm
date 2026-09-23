@@ -22,7 +22,6 @@ def _payload() -> dict:
     return json.loads(REFERENCE_INPUT.read_text(encoding="utf-8"))
 
 
-@pytest.mark.xfail(strict=True, reason="Known input defect: non-finite floats are accepted.")
 def test_nonfinite_input_is_rejected():
     payload = _payload()
     payload["P_CO_atm"] = "NaN"
@@ -72,10 +71,6 @@ def test_custom_conversion_report_round_trip():
     assert reparsed.options.al2o3_conversion == config.options.al2o3_conversion
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known validation defect: an empty options array is silently treated as an object.",
-)
 def test_options_array_is_rejected():
     payload = _payload()
     payload["options"] = []
@@ -115,10 +110,6 @@ def test_trace_redox_species_are_not_rounded_to_zero():
     assert split.n_cations["Cr2+"] > 0.0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect: malformed JSON escapes the InputError contract.",
-)
 def test_malformed_json_raises_input_error():
-    with pytest.raises(InputError):
+    with pytest.raises(InputError, match=r"line 1 column 2"):
         parse_input("{")

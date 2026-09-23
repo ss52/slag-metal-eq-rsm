@@ -103,3 +103,19 @@ def test_compute_state_uses_rs_fe_and_conventional_chromium_activities():
         / (activities.gamma_conventional_by_species["CrO"] ** 3 * result.split.n_totals["Cr"])
     )
     assert targets["r_Cr"] == pytest.approx(cr_ratio(cr_rhs), rel=1e-12)
+
+
+def test_solve_rejects_nonfinite_trailing_target(monkeypatch):
+    import slag_model.solver as solver_module
+
+    cfg = load_input(SLAG_PATH)
+    valid_state, _ = compute_state(cfg, r_Fe=0.10, r_Cr=1.0, C_wtpc=0.02)
+    monkeypatch.setattr(
+        solver_module,
+        "compute_state",
+        lambda *_args: (valid_state, {"r_Fe": 0.10, "r_Cr": 1.0, "C": float("nan")}),
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        solver_module.solve(cfg)
+    assert type(exc_info.value).__name__ == "NumericalStateError"
