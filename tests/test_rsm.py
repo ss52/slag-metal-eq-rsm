@@ -91,7 +91,10 @@ def test_fixed_po2_chromium_reaction():
     r = state.r_Cr
     gamma = state.activities.gamma_conventional_by_species
     rhs = (
-        state.k_Cr * state.a_Cr * gamma["CrO1.5"] ** 2 * state.N
+        state.k_Cr
+        * state.a_Cr
+        * gamma["CrO1.5"] ** 2
+        * state.N
         / (gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
     )
     assert r**3 / (1.0 + r) == pytest.approx(rhs, rel=1e-8)

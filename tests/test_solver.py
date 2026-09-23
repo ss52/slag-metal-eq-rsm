@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import pathlib
 
 import pytest
@@ -9,7 +10,7 @@ import pytest
 from slag_model.io import load_input
 from slag_model.redox import cr_ratio, fe_ratio_ban_ya
 from slag_model.rsm import SlagActivities
-from slag_model.solver import compute_state
+from slag_model.solver import compute_state, solve
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SLAG_PATH = ROOT / "examples" / "eaf_slag_01.json"
@@ -119,3 +120,36 @@ def test_solve_rejects_nonfinite_trailing_target(monkeypatch):
     with pytest.raises(RuntimeError) as exc_info:
         solver_module.solve(cfg)
     assert type(exc_info.value).__name__ == "NumericalStateError"
+
+
+def test_reference_case_after_p0_corrections():
+    cfg = load_input(SLAG_PATH)
+    result = solve(cfg)
+
+    assert result.k_Cr == pytest.approx(0.00878747397894681, rel=1e-10)
+    assert result.r_Fe == pytest.approx(0.13189054746, rel=2e-5)
+    assert result.r_Cr == pytest.approx(0.25229986894, rel=2e-5)
+    assert result.C_wtpc == pytest.approx(0.0319280093, rel=2e-5)
+    assert result.P_O2_atm == pytest.approx(3.45717e-10, rel=2e-5)
+
+    cations = result.split.n_cations
+    assert cations["Fe2+"] + cations["Fe3+"] == pytest.approx(
+        result.split.n_totals["Fe"], abs=1e-12
+    )
+    assert cations["Cr2+"] + cations["Cr3+"] == pytest.approx(
+        result.split.n_totals["Cr"], abs=1e-12
+    )
+    assert cfg.options.ti_handling == "exclude_renormalize"
+    assert sum(result.X.values()) == pytest.approx(1.0, abs=1e-12)
+
+    activities = result.activities
+    q_over_k_fe = activities.a_conventional_by_species["FeO"] / (
+        result.a_Fe * math.sqrt(result.P_O2_atm) * result.k_FeO
+    )
+    q_over_k_co = cfg.P_CO_atm / (result.a_C * math.sqrt(result.P_O2_atm) * result.k_CO)
+    q_over_k_cr = activities.a_conventional_by_species["CrO"] ** 3 / (
+        activities.a_conventional_by_species["CrO1.5"] ** 2 * result.a_Cr * result.k_Cr
+    )
+    assert q_over_k_fe == pytest.approx(1.0, abs=1e-6)
+    assert q_over_k_co == pytest.approx(1.0, abs=1e-6)
+    assert q_over_k_cr == pytest.approx(1.0, abs=1e-6)

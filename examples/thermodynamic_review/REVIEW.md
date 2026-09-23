@@ -8,21 +8,17 @@ validation cases.
 
 ## Executive conclusion
 
-The implementation is structurally clear and most of the basic algebra is sound,
-but the current coupled result is **not yet scientifically reliable**. Three
-thermodynamic standard-state/stoichiometry defects materially change results, and
-one input-validation defect permits a false successful solve containing `NaN`.
-
-The ordinary project suite passes (`56 passed`), but it does not detect these
-problems. Several expectations are derived from the supplied workbook, which
-contains source-data and formula errors of its own. The library should not be used
-for process decisions until the critical findings below are fixed and the strict
-`xfail` tests in this directory are converted to passing assertions.
+At the 2026-09-23 audit baseline, three thermodynamic standard-state or
+stoichiometry defects materially changed results, and one input-validation defect
+permitted a false successful solve containing `NaN`. P0 Tasks 1-6 have since
+resolved C1-C4; each resolution and its source-based test evidence is recorded
+below. The ordinary suite and paper-derived pack were rerun for the Task 6
+handoff. Normal- and low-priority findings remain outside P0 scope.
 
 Correcting only the two coupled redox defects, while leaving the rest of the code
 unchanged, changes the reference case as follows:
 
-| Quantity | Current code | Source-consistent Fe/Cr calculation |
+| Quantity | Audit baseline before P0 | Source-consistent Fe/Cr calculation |
 |---|---:|---:|
 | $K_{Cr}$ at 1823.15 K | 0.915831 | 0.00878747 |
 | $n_{Fe^{3+}}/n_{Fe^{2+}}$ | 0.173117 | 0.131891 |
@@ -64,7 +60,7 @@ Primary sources:
 
 ## Critical findings
 
-### C1. Chromium equilibrium uses the wrong energy units and the wrong metal standard state
+### C1. Chromium equilibrium uses the wrong energy units and the wrong metal standard state — RESOLVED
 
 Evidence:
 
@@ -81,9 +77,10 @@ with
 
 $$\Delta G^\circ=(25690-13.36T)\ \mathrm{cal\ mol^{-1}},$$
 
-and pure solid chromium as the metal standard state. The code therefore makes two
-independent changes without conversion: cal is interpreted as joules and $Cr(s)$
-is replaced by dissolved chromium on the 1 mass-% standard state.
+and pure solid chromium as the metal standard state. At the audit baseline the
+code made two independent changes without conversion: cal was interpreted as
+joules and $Cr(s)$ was replaced by dissolved chromium on the 1 mass-% standard
+state.
 
 For the library's metal activity convention, the required reaction energy is
 
@@ -91,14 +88,16 @@ $$\Delta G^\circ_{1\%Cr}
 =4.184(25690-13.36T)-(19246-46.86T)\ \mathrm{J\ mol^{-1}},$$
 
 where the second term is $Cr(s)=[Cr]_{1\%}$. At 1823.15 K this gives
-$K_{Cr}=0.00878747$, versus 0.915831 in the library. The reference-case chromium
+$K_{Cr}=0.00878747$, versus 0.915831 at the audit baseline. The reference-case chromium
 ratio consequently changes from 1.538 to 0.252 when this and C2 are corrected.
 
-Required action: represent the reaction and its metal standard state explicitly;
-convert calories to joules at the data boundary; add a source-equation test for
-the compound reaction.
+**Resolution and evidence:** `k_Cr` now combines the cal/mol oxide reaction with
+the J/mol dissolution reaction on the Henrian 1 mass-% Cr basis. Verified by
+`tests/test_equilibrium.py::test_k_Cr_source_reaction`,
+`examples/thermodynamic_review/test_paper_validation.py::test_xiao_chromium_equilibrium_is_on_library_metal_standard_state`,
+and the full-reference `tests/test_solver.py::test_reference_case_after_p0_corrections`.
 
-### C2. Ban-ya Fe redox equation is called with mixed standard states
+### C2. Ban-ya Fe redox equation is called with mixed standard states — RESOLVED
 
 Evidence:
 
@@ -114,11 +113,15 @@ $\gamma_{FeO_{1.5}(RS)}$. The FeO conversion contributes about a factor 1.344 at
 same remaining assumptions, correcting the caller changes the reference-case
 $r_{Fe}$ from 0.173117 to 0.131891.
 
-Required action: preserve RS coefficients as first-class values and pass them to
-the Fe redox equation; use converted FeO only where the FeO(l) standard is
-actually required.
+**Resolution and evidence:** Ban-ya Eq. 24 now receives both Fe coefficients
+from the RS activity map in the coupled and fixed-$P_{O_2}$ solvers; conventional
+$a_{FeO}$ remains in the oxygen-potential closure. Verified by
+`examples/thermodynamic_review/test_paper_validation.py::test_banya_eq_24_is_coupled_with_regular_solution_gammas`,
+`examples/thermodynamic_review/test_paper_validation.py::test_fixed_po2_fe_redox_uses_two_rs_gammas`,
+and the independent Fe quotient identity in
+`tests/test_solver.py::test_reference_case_after_p0_corrections`.
 
-### C3. P2O5 and Al2O3 activities are calculated as one-cation pseudo-components
+### C3. P2O5 and Al2O3 activities are calculated as one-cation pseudo-components — RESOLVED
 
 Evidence:
 
@@ -138,18 +141,21 @@ $$RT\ln a_{P_2O_5}
 =2RT\ln\!\left(\gamma^{RS}_{PO_{2.5}}X_P\right)
 +\Delta G^\circ_{conv}.$$
 
-The one-power expression now returned as `a_P2O5` is neither this conventional
-formula-unit activity nor clearly labeled pseudo-component activity. The same
-stoichiometric problem applies to Al2O3. In addition, the Al2O3 conversion is not
-known in the project, so a conventional Al2O3 activity cannot currently be
-reported at all.
+At the audit baseline, the one-power expression returned as `a_P2O5` was neither
+this conventional formula-unit activity nor clearly labeled pseudo-component
+activity. The same stoichiometric problem applied to Al2O3. In addition, the
+Al2O3 conversion was not known in the project, so a conventional Al2O3 activity
+could not be reported.
 
-Required action: expose pseudo-component activities as `a_PO2.5_RS` and
-`a_AlO1.5_RS`; calculate formula-unit activities only when a documented
-conversion is available; never label an RS pseudo-component as conventional
-P2O5 or Al2O3.
+**Resolution and evidence:** RS cation activities and conventional species
+activities are now separate. P2O5 uses the two-unit formula conversion; Al2O3
+has no default conventional activity and only accepts a labeled custom
+conversion. Verified by `tests/test_activities.py::test_banya_p2o5_formula_unit_activity_relation`,
+`tests/test_activities.py::test_zero_phosphorus_and_unconverted_alumina`,
+`tests/test_activities.py::test_custom_alumina_conversion_uses_two_rs_units`,
+and the v2 report tests.
 
-### C4. Non-finite input can falsely converge and serialize invalid JSON
+### C4. Non-finite input can falsely converge and serialize invalid JSON — RESOLVED
 
 Evidence:
 
@@ -160,12 +166,16 @@ Evidence:
 - `slag_model/cli.py:104` uses the default JSON encoder, which emits non-standard
   `NaN` tokens.
 
-Reproduction: setting `P_CO_atm` to `"NaN"` returns a nominally converged result
-after 22 iterations with `C_wtpc=NaN` and `Q/K_CO=NaN`.
+At the audit baseline, setting `P_CO_atm` to `"NaN"` returned a nominally
+converged result after 22 iterations with `C_wtpc=NaN` and `Q/K_CO=NaN`.
 
-Required action: reject every non-finite scalar at input, check all state and
-residual values for finiteness on every iteration, and serialize reports with
-`allow_nan=False`.
+**Resolution and evidence:** parsing rejects non-finite scalars with field
+context; solver state, targets, residuals, and updates are checked before
+convergence; the CLI serializes with `allow_nan=False` before opening the output
+file. Verified by `tests/test_io.py::test_nonfinite_pressure_string_rejected`,
+`tests/test_io.py::test_bare_json_nonfinite_constant_rejected`,
+`tests/test_solver.py::test_solve_rejects_nonfinite_trailing_target`, and
+`tests/test_cli.py::test_nonfinite_report_does_not_create_output_file`.
 
 ## Normal-priority findings
 
@@ -319,15 +329,20 @@ uv run pytest examples\thermodynamic_review -p no:cacheprovider -v
 Current result:
 
 ```text
-21 passed, 14 xfailed
+29 passed, 7 xfailed
 ```
 
-The strict `xfail` markers are intentional. Each corresponds to a known defect;
-after fixing that defect, remove its marker so an unexpected pass becomes a normal
-required pass. The experimental factor-of-2.1 envelope is not a substitute for the
-strict equation and data tests.
+The seven remaining strict `xfail` markers correspond to documented
+normal-priority findings: chromium root bracketing, fixed-pressure diagnostic
+pressure, elemental-total warning, trace-species cancellation, the Fe3+-Ca2+
+coefficient, selectable Xiao-2002 parameter sets, and the Mn-C interaction
+coefficient. The four P0 critical regressions now pass. The experimental
+factor-of-2.1 envelope is not a substitute for the strict equation and data tests.
 
 ## Recommended repair order
+
+This was the original pre-P0 triage. Items 1-4 are complete under P0 Tasks 1-6;
+the normal- and low-priority findings below remain open.
 
 1. Fix C1 and explicitly model every reaction's units and standard states.
 2. Fix C2 by keeping RS and conventional gammas distinct in the type/API design.
@@ -340,17 +355,36 @@ strict equation and data tests.
 7. Rebuild the normal test suite around the paper fixtures; retain the workbook
    only as a clearly labeled legacy-regression profile.
 
-## Verification performed
+## Audit baseline verification (2026-09-23)
 
 - `uv run pytest -p no:cacheprovider -v` -> 56 passed.
 - `uv run ruff check --no-cache .` -> passed before audit artifacts were added.
 - `uv run ruff format --check --no-cache .` -> 21 files already formatted before
   audit artifacts were added.
-- New audit pack -> 21 passed, 14 expected failures.
+- New audit pack -> 21 passed, 14 expected failures at the audit baseline.
 - The reference case was recalculated independently with source-consistent Fe and
   Cr equations.
 - The supplied workbook was inspected as formulas and cached values, not only as
   rendered output.
 - Relevant pages of both bundled HSC PDFs were rendered and visually checked.
 
-No production code was changed in this audit.
+No production code was changed during the original audit.
+
+## P0 closeout verification (2026-09-24)
+
+- `uv run pytest -p no:cacheprovider -v` -> 86 passed.
+- `uv run pytest examples/thermodynamic_review -ra -p no:cacheprovider` ->
+  29 passed, 7 xfailed; all remaining xfails correspond to the normal-priority
+  findings listed above.
+- `uv run ruff check --no-cache .` -> passed.
+- `uv run ruff format --check --no-cache .` -> 27 files already formatted after
+  mechanical formatting of the six earlier P0 branch files and `tests/test_solver.py`.
+- `git diff --check` -> passed.
+- `tests/test_solver.py::test_reference_case_after_p0_corrections` -> passed;
+  `K_Cr=0.00878747397894681`, `r_Fe=0.13189054746`,
+  `r_Cr=0.25229986894`, `[C]=0.0319280093 wt%`, and
+  `P_O2=3.45717e-10 atm` under the unchanged hybrid parameter matrix.
+
+These values are a regression sentinel for the unchanged hybrid matrix, not
+empirical validation. A future named parameter-set change must version the
+sentinel rather than silently widen or move its tolerances.

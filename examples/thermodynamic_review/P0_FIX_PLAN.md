@@ -70,6 +70,7 @@ DELTA_G_CR_SOLID_CAL = (25690.0, -13.36)
 # Cr(s) = [Cr] on the Henrian 1 mass-% scale, J/mol Cr.
 DELTA_G_CR_DISSOLUTION_J = (19246.0, -46.86)
 
+
 # equilibrium.py
 def k_Cr(T: float) -> float:
     dg_oxide_j = 4.184 * _delta_g(DELTA_G_CR_SOLID_CAL, T)
@@ -155,8 +156,10 @@ def workbook_state():
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
     state, _ = compute_state(
-        cfg, r_Fe=0.13073478698367935,
-        r_Cr=1.2754258847919098, C_wtpc=0.018,
+        cfg,
+        r_Fe=0.13073478698367935,
+        r_Cr=1.2754258847919098,
+        C_wtpc=0.018,
     )
     return state
 ```
@@ -169,7 +172,10 @@ def test_fixed_po2_chromium_reaction():
     state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
     r = state.r_Cr
     rhs = (
-        state.k_Cr * state.a_Cr * state.gamma["CrO1.5"] ** 2 * state.N
+        state.k_Cr
+        * state.a_Cr
+        * state.gamma["CrO1.5"] ** 2
+        * state.N
         / (state.gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
     )
     assert r**3 / (1.0 + r) == pytest.approx(rhs, rel=1e-8)
@@ -216,10 +222,9 @@ def test_banya_p2o5_formula_unit_activity_relation():
     )
     assert "P2O5" not in result.gamma_conventional_by_species
 
+
 def test_zero_phosphorus_and_unconverted_alumina():
-    result = build_slag_activities(
-        {"P5+": 0.0, "Al3+": 0.0}, {"P5+": 0.0, "Al3+": 0.1}, 1873.0
-    )
+    result = build_slag_activities({"P5+": 0.0, "Al3+": 0.0}, {"P5+": 0.0, "Al3+": 0.1}, 1873.0)
     assert result.a_conventional_by_species["P2O5"] == 0.0
     assert "Al2O3" not in result.a_conventional_by_species
     assert result.a_rs_by_cation["Al3+"] == pytest.approx(0.1)
@@ -236,6 +241,7 @@ class ConversionSpec:
     B: float
     standard_state: str
 
+
 @dataclass(frozen=True)
 class SlagActivities:
     gamma_rs_by_cation: dict[str, float]
@@ -244,6 +250,7 @@ class SlagActivities:
     a_conventional_by_species: dict[str, float]
     delta_g_conversion_J_per_mol_species: dict[str, float]
     standard_state_by_species: dict[str, str]
+
 
 # Inside build_slag_activities, with rt = R*T:
 gamma_rs = {c: math.exp(v / rt) for c, v in rtln_gamma_rs.items()}
@@ -260,9 +267,7 @@ Keep the P2O5 coefficients in `data.py` and reference them rather than duplicate
 def test_custom_alumina_conversion_uses_two_rs_units():
     T = 1873.0
     spec = ConversionSpec(A=100.0, B=-0.1, standard_state="Al2O3(custom-solid)")
-    result = build_slag_activities(
-        {"Al3+": 0.0}, {"Al3+": 0.1}, T, al2o3_conversion=spec
-    )
+    result = build_slag_activities({"Al3+": 0.0}, {"Al3+": 0.1}, T, al2o3_conversion=spec)
     assert result.a_conventional_by_species["Al2O3"] == pytest.approx(
         0.1**2 * math.exp((100.0 - 0.1 * T) / (R * T))
     )
@@ -386,6 +391,7 @@ def test_nonfinite_pressure_string_rejected(bad):
     payload = {**VALID_JSON, "P_CO_atm": bad}
     with pytest.raises(InputError, match="P_CO_atm.*finite"):
         parse_input(json.dumps(payload))
+
 
 def test_bare_json_nan_rejected():
     with pytest.raises(InputError, match="non-finite"):

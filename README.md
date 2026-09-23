@@ -9,7 +9,7 @@ components at a given temperature using **Ban-ya's quadratic formalism**
 as one total each and are split automatically into their valence states
 (Fe²⁺/Fe³⁺ and Cr²⁺/Cr³⁺) by the redox equilibria.
 
-[![Tests](https://img.shields.io/badge/tests-56%20passed-brightgreen)](#tests)
+[![Tests](https://img.shields.io/badge/tests-86%20passed-brightgreen)](#tests)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.13-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
@@ -40,7 +40,7 @@ $$P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2$$
    (Ban-ya Eq. 24).
 
 4. **Chromium redox.** The Cr²⁺/Cr³⁺ ratio is pinned by the chromium activity
-   in the steel via $2\,\underline{CrO_{1.5}} + [Cr] = 3\,\underline{CrO}$
+   in the steel via $2\,\underline{CrO_{1.5}} + [Cr]_{1\,wt\%} = 3\,\underline{CrO}$
    (Xiao & Holappa) — oxygen cancels, so no $P_{O_2}$ is needed. The model
    solves the **exact cubic** relation rather than the approximate square-root
    fixed point found in spreadsheet implementations.
@@ -52,6 +52,34 @@ $$P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2$$
    in balance *by construction*.
 
 Because the oxygen potential is read off the slag and the balanced carbon is then computed from it, the coupled system converges in typically **5–30 damped fixed-point iterations**.
+
+### Corrected equilibrium equations and numerical validity
+
+The chromium source reaction uses pure solid chromium and reports its free
+energy in cal/mol. The solver uses dissolved chromium on the Henrian 1 wt%
+standard state, so the reaction energy is converted as
+
+$$\Delta G^\circ_{1\,wt\%Cr}
+=4.184(25690-13.36T)-(19246-46.86T)\ \mathrm{J\ mol^{-1}},\qquad
+K_{Cr}=\exp\!\left(-\frac{\Delta G^\circ_{1\,wt\%Cr}}{RT}\right).$$
+
+Ban-ya Eq. 24 uses both Fe coefficients on the regular-solution basis:
+
+$$\log_{10}\!\left(\frac{n_{Fe^{3+}}}{n_{Fe^{2+}}}\right)
+=\frac{6625}{T}-2.77+0.25\log_{10}P_{O_2}
++\log_{10}\gamma_{FeO}^{RS}-\log_{10}\gamma_{FeO_{1.5}}^{RS}.$$
+
+The oxygen-potential closure still uses conventional $a_{FeO}$. For the
+formula-unit conversion $P_2O_5(l)=2PO_{2.5}(RS)$, the reported activity is
+$a_{P_2O_5}= (a_{PO_{2.5}}^{RS})^2\exp[(52720-230.706T)/(RT)]$;
+conventional $a_{Al_2O_3}$ is unavailable unless a labeled custom conversion is
+provided. The corresponding regular-solution cation activities remain
+available.
+
+Numeric inputs and solver states must be finite. Non-finite or undefined
+iteration values raise an error, and JSON reports are serialized with strict
+JSON number handling before an output file is opened, so a failed report cannot
+leave a partial file.
 
 ---
 
@@ -279,10 +307,11 @@ criteria — is in **[PLAN.md](PLAN.md)**.
 uv run pytest -v
 ```
 
-The suite covers data integrity, a **workbook regression** (RSM `RT·ln γ` per cation, converted
-γ, redox ratios), the WIPF regression, equilibrium-constant ranges including
-the Henrian two-ΔG decomposition of $K_{CO}$ (the standard-state trap), and
-the balanced solve (mass balance, $Q/K = 1$, physical ranges).
+The suite covers source-equation checks for Cr equilibrium and Fe redox,
+formula-unit activity conversions, numeric input/output safety, legacy workbook
+regressions of the interaction matrix, and the reference coupled solve. The
+paper-derived cases are an independent experimental envelope, not an oracle for
+the parameter matrix.
 
 ## Code quality
 
@@ -297,8 +326,9 @@ uv run ruff format --check .
 
 These are **explicit** — the model does not invent values:
 
-1. **Al₂O₃ conversion factor** is TBD (default `A=0, B=0`, so γ(Al₂O₃) is on
-   the regular-solution scale and a warning is emitted).
+1. **Al₂O₃ conventional activity** has no default conversion and is reported as
+   unavailable. The regular-solution `AlO1.5` activity remains available; a
+   conventional value requires a labeled custom conversion.
 2. **FeO₁.₅ conversion** defaults to none (pure Fe₂O₃ is nearly solid at
    1823 K, $T_m \approx 1838$ K).
 3. **Fe–Cr, Mn–Cr, P–Cr pair interactions are 0** — a limit of the Xiao
