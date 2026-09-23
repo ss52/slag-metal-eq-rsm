@@ -19,7 +19,7 @@ from slag_model.equilibrium import k_Cr
 from slag_model.io import load_input
 from slag_model.redox import fe_ratio_ban_ya
 from slag_model.rsm import convert_gammas, rsm_gamma_rtln
-from slag_model.solver import compute_state
+from slag_model.solver import compute_state, solve_redox_fixed_po2
 
 REVIEW_DIR = Path(__file__).resolve().parent
 REPO_ROOT = REVIEW_DIR.parents[1]
@@ -77,10 +77,6 @@ def test_xiao_2002_table_iii_ca_si_interaction_energy():
     assert ALPHA[IDX["Ca2+"], IDX["Si4+"]] == pytest.approx(expected, abs=0.0)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect: Eq. 24 receives converted FeO gamma.",
-)
 def test_banya_eq_24_is_coupled_with_regular_solution_gammas():
     config = load_input(REFERENCE_INPUT)
     state, targets = compute_state(config, r_Fe=0.10, r_Cr=1.0, C_wtpc=0.02)
@@ -95,10 +91,19 @@ def test_banya_eq_24_is_coupled_with_regular_solution_gammas():
     assert targets["r_Fe"] == pytest.approx(expected, rel=1e-12)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect: chromium equilibrium mixes units and standards.",
-)
+def test_fixed_po2_fe_redox_uses_two_rs_gammas():
+    cfg = load_input(REFERENCE_INPUT)
+    state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
+    rt = R * cfg.temperature_K
+    expected = fe_ratio_ban_ya(
+        cfg.temperature_K,
+        1e-9,
+        math.exp(state.rtln_gamma_rs["Fe2+"] / rt),
+        math.exp(state.rtln_gamma_rs["Fe3+"] / rt),
+    )
+    assert state.r_Fe == pytest.approx(expected, rel=1e-8)
+
+
 def test_xiao_chromium_equilibrium_is_on_library_metal_standard_state():
     temperature = 1823.15
     source = CASES["xiao_holappa_1993"]

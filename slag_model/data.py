@@ -167,7 +167,16 @@ DELTA_G_FEO: tuple[float, float] = (-232600.0, 47.9)  # Fe(l) + 1/2 O2 = FeO(l)
 DELTA_G_CO: tuple[float, float] = (-134300.0, -45.40)  # [C](1wt%) + 1/2 O2 = CO(g)
 DELTA_G_CO_GRAPHITE: tuple[float, float] = (-111710.0, -87.66)  # C(gr) + 1/2 O2 = CO(g)
 DELTA_G_C_DISSOLUTION: tuple[float, float] = (22590.0, -42.26)  # C(gr) = [C]_1wt%
-DELTA_G_CR: tuple[float, float] = (25690.0, -13.36)  # 2 CrO1.5 + [Cr] = 3 CrO
+# Chromium equilibrium source reactions.
+# Xiao & Holappa, INFACON VII (1995), p. 322, Eqs. 9-10:
+# 2 CrO1.5 + Cr(s) = 3 CrO, with Delta G in cal/mol reaction.
+DELTA_G_CR_SOLID_CAL: tuple[float, float] = (25690.0, -13.36)
+# Cr(s) = [Cr] on the Henrian 1 mass-% standard, per mol Cr. Xiao, Kou & Fang
+# (2018), p. 419, Table 1, lists (19246 - 46.86*T) J/mol Cr, the rounded
+# cal-to-J transcription of 4600 - 11.20*T cal/g-atom in Stefanescu & Katz,
+# ASM Handbook vol. 15 (2008), p. 47, Table 3. Do not attribute it to
+# Sigworth & Elliott (1974).
+DELTA_G_CR_DISSOLUTION_J: tuple[float, float] = (19246.0, -46.86)
 
 # Wagner first-order interaction parameters e_i^j (1600 degC values) on the
 # Henrian 1 wt% scale. Rows/cols in METAL_SPECIES order.

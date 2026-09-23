@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from .constants import R
 from .data import CATION_TO_OXIDE
 from .equilibrium import k_CO, k_Cr, k_FeO, p_o2_from_slag
 from .metal import (
@@ -95,7 +96,10 @@ def compute_state(
     k_FeO_val = k_FeO(T)
     P_O2 = p_o2_from_slag(a_FeO, T, a_Fe)
 
-    r_Fe_n = fe_ratio_ban_ya(T, P_O2, gamma["FeO"], gamma["FeO1.5"])
+    rt = R * T
+    gamma_feo_rs = math.exp(rtln_rs["Fe2+"] / rt)
+    gamma_feo1_5_rs = math.exp(rtln_rs["Fe3+"] / rt)
+    r_Fe_n = fe_ratio_ban_ya(T, P_O2, gamma_feo_rs, gamma_feo1_5_rs)
 
     f = wipf_factors(cfg.metal_wtpc, C_wtpc)
     a_C = activity_C(f, C_wtpc)
@@ -205,8 +209,8 @@ def solve_redox_fixed_po2(cfg, P_O2: float, C: float = 0.018) -> SolveResult:
         r_Fe_n = fe_ratio_ban_ya(
             cfg.temperature_K,
             P_O2,
-            current_state.gamma["FeO"],
-            current_state.gamma["FeO1.5"],
+            math.exp(current_state.rtln_gamma_rs["Fe2+"] / (R * cfg.temperature_K)),
+            math.exp(current_state.rtln_gamma_rs["Fe3+"] / (R * cfg.temperature_K)),
         )
         n_Cr_tot = current_state.split.n_totals["Cr"]
         if n_Cr_tot > 0.0:

@@ -11,18 +11,23 @@ from .data import (
 )
 
 
-def fe_ratio_ban_ya(T: float, P_O2: float, gamma_FeO: float, gamma_FeO1_5: float) -> float:
+def fe_ratio_ban_ya(
+    T: float,
+    P_O2: float,
+    gamma_FeO_RS: float,
+    gamma_FeO1_5_RS: float,
+) -> float:
     """Fe3+/Fe2+ ratio from Ban-ya Eq. 24 at fixed P_O2 (PLAN.md 6.4d, 7.5).
 
     log10(Fe3+/Fe2+) = 6625/T - 2.77 + 0.25*log10(P_O2)
-                        + log10(gamma_FeO) - log10(gamma_FeO1.5)
+                        + log10(gamma_FeO_RS) - log10(gamma_FeO1.5_RS)
     """
     log10_r = (
         BANYA_T_COEF / T
         + BANYA_CONSTANT
         + BANYA_PO2_COEF * math.log10(P_O2)
-        + math.log10(gamma_FeO)
-        - math.log10(gamma_FeO1_5)
+        + math.log10(gamma_FeO_RS)
+        - math.log10(gamma_FeO1_5_RS)
     )
     return 10.0**log10_r
 

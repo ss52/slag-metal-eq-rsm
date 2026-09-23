@@ -7,7 +7,7 @@ import pathlib
 import pytest
 
 from slag_model.io import load_input
-from slag_model.solver import solve_redox_fixed_po2
+from slag_model.solver import compute_state, solve_redox_fixed_po2
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SLAG_PATH = ROOT / "examples" / "eaf_slag_01.json"
@@ -29,13 +29,19 @@ EXPECTED_RTLN = {
 
 @pytest.fixture(scope="module")
 def workbook_state():
-    """Run the fixed-P_O2 redox solve with workbook options."""
+    """Evaluate the historical fixed composition with workbook options."""
     cfg = load_input(SLAG_PATH)
     # Override options to match workbook settings
     cfg.options.cross_terms = "major5"
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
-    return solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
+    state, _ = compute_state(
+        cfg,
+        r_Fe=0.13073478698367935,
+        r_Cr=1.2754258847919098,
+        C_wtpc=0.018,
+    )
+    return state
 
 
 def test_rtln_gamma_rs_per_cation(workbook_state):
@@ -66,14 +72,17 @@ def test_converted_gamma_CrO1_5(workbook_state):
     assert workbook_state.gamma["CrO1.5"] == pytest.approx(7.71, abs=0.02)
 
 
-def test_r_Fe(workbook_state):
-    assert workbook_state.r_Fe == pytest.approx(0.131, abs=0.002)
-
-
-def test_r_Cr(workbook_state):
-    assert workbook_state.r_Cr == pytest.approx(1.25, abs=0.05)
-
-
 def test_sum_X(workbook_state):
     """Cation fractions sum to unity (PLAN.md test 6)."""
     assert sum(workbook_state.X.values()) == pytest.approx(1.0, abs=1e-12)
+
+
+def test_fixed_po2_chromium_reaction():
+    cfg = load_input(SLAG_PATH)
+    state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
+    r = state.r_Cr
+    rhs = (
+        state.k_Cr * state.a_Cr * state.gamma["CrO1.5"] ** 2 * state.N
+        / (state.gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
+    )
+    assert r**3 / (1.0 + r) == pytest.approx(rhs, rel=1e-8)

@@ -23,9 +23,10 @@ def test_k_CO_range():
     assert 1.5e6 <= k <= 1.8e6, f"K_CO = {k:.4e}, expected [1.5e6, 1.8e6]"
 
 
-def test_k_Cr_range():
-    k = k_Cr(T)
-    assert 0.90 <= k <= 0.93, f"K_Cr = {k:.4f}, expected [0.90, 0.93]"
+@pytest.mark.parametrize("temperature", [1773.15, 1823.15, 1873.15])
+def test_k_Cr_source_reaction(temperature):
+    dg = 4.184 * (25690.0 - 13.36 * temperature) - (19246.0 - 46.86 * temperature)
+    assert k_Cr(temperature) == pytest.approx(math.exp(-dg / (R * temperature)), rel=1e-12)
 
 
 def test_k_CO_approx_value():
@@ -34,10 +35,6 @@ def test_k_CO_approx_value():
 
 def test_k_FeO_approx_value():
     assert k_FeO(T) == pytest.approx(1.45e4, rel=0.02)
-
-
-def test_k_Cr_approx_value():
-    assert k_Cr(T) == pytest.approx(0.916, rel=0.01)
 
 
 def test_k_CO_henrian_decomposition():

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import math
 import pathlib
 
 import pytest
 
+from slag_model.constants import R
 from slag_model.io import load_input
 from slag_model.redox import cr_ratio, fe_ratio_ban_ya
 from slag_model.solver import solve_redox_fixed_po2
@@ -40,20 +42,31 @@ def test_cr_ratio_monotonic():
 
 
 def test_fe_split_regression():
-    """r_Fe at fixed P_O2 = 1e-9 atm (PLAN.md test 5)."""
+    """Fixed-P_O2 Fe ratio satisfies Eq. 24 using both RS gammas."""
     cfg = load_input(SLAG_PATH)
     cfg.options.cross_terms = "major5"
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
     state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
-    assert state.r_Fe == pytest.approx(0.131, abs=0.002)
+    rt = R * cfg.temperature_K
+    expected = fe_ratio_ban_ya(
+        cfg.temperature_K,
+        1e-9,
+        math.exp(state.rtln_gamma_rs["Fe2+"] / rt),
+        math.exp(state.rtln_gamma_rs["Fe3+"] / rt),
+    )
+    assert state.r_Fe == pytest.approx(expected, rel=1e-8)
 
 
 def test_cr_split_regression():
-    """r_Cr at fixed P_O2 = 1e-9 atm (PLAN.md test 5)."""
+    """Fixed-P_O2 chromium ratio satisfies the Henrian equilibrium identity."""
     cfg = load_input(SLAG_PATH)
     cfg.options.cross_terms = "major5"
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
     state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
-    assert state.r_Cr == pytest.approx(1.25, abs=0.05)
+    rhs = (
+        state.k_Cr * state.a_Cr * state.gamma["CrO1.5"] ** 2 * state.N
+        / (state.gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
+    )
+    assert state.r_Cr**3 / (1.0 + state.r_Cr) == pytest.approx(rhs, rel=1e-8)

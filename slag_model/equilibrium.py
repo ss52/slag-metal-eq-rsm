@@ -7,7 +7,8 @@ import math
 from .constants import R
 from .data import (
     DELTA_G_CO,
-    DELTA_G_CR,
+    DELTA_G_CR_DISSOLUTION_J,
+    DELTA_G_CR_SOLID_CAL,
     DELTA_G_FEO,
 )
 
@@ -30,8 +31,10 @@ def k_CO(T: float) -> float:
 
 
 def k_Cr(T: float) -> float:
-    """2 CrO1.5 + [Cr] = 3 CrO:  K_Cr = a_CrO^3 / (a_CrO1.5^2 * a_Cr)."""
-    return math.exp(-_delta_g(DELTA_G_CR, T) / (R * T))
+    """2 CrO1.5 + [Cr]1wt% = 3 CrO on the dissolved-metal standard state."""
+    dg_oxide_j = 4.184 * _delta_g(DELTA_G_CR_SOLID_CAL, T)
+    dg_dissolution_j = _delta_g(DELTA_G_CR_DISSOLUTION_J, T)
+    return math.exp(-(dg_oxide_j - dg_dissolution_j) / (R * T))
 
 
 def p_o2_from_slag(a_FeO: float, T: float, a_Fe: float) -> float:
