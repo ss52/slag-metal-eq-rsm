@@ -119,6 +119,19 @@ def test_nonfinite_metal_value_has_field_context():
         parse_input(raw)
 
 
+def test_negative_metal_value_rejected_with_field_context():
+    payload = {**VALID_JSON, "metal_wtpc": {**VALID_JSON["metal_wtpc"], "Cr": -0.1}}
+    with pytest.raises(InputError, match=r"metal_wtpc\.Cr.*non-negative"):
+        parse_input(json.dumps(payload))
+
+
+def test_extremely_large_json_integer_rejected_with_field_context():
+    huge_integer = "9" * 5000
+    raw = json.dumps(VALID_JSON).replace('"Cr": 0.038', f'"Cr": {huge_integer}')
+    with pytest.raises(InputError, match=r"metal_wtpc\.Cr.*finite"):
+        parse_input(raw)
+
+
 @pytest.mark.parametrize(
     ("option_name", "coefficient"),
     [("fe2o3_conversion", "A"), ("al2o3_conversion", "B")],

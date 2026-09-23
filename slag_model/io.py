@@ -41,6 +41,13 @@ class InputError(ValueError):
     """Raised when the input JSON violates the specification."""
 
 
+@dataclass(frozen=True)
+class _OversizedJsonInteger:
+    """Retain an integer token that Python refuses to convert due to its digit limit."""
+
+    text: str
+
+
 @dataclass
 class Options:
     cross_terms: str = "full"
@@ -170,9 +177,13 @@ def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[
 
 
 def _finite_number(v, name: str, *, allow_numeric_string: bool = False) -> float:
-    allowed_types = (int, float, str) if allow_numeric_string else (int, float)
+    allowed_types = (int, float, _OversizedJsonInteger)
+    if allow_numeric_string:
+        allowed_types = (*allowed_types, str)
     if isinstance(v, bool) or not isinstance(v, allowed_types):
         raise InputError(f"{name} must be a number, got {type(v).__name__}")
+    if isinstance(v, _OversizedJsonInteger):
+        raise InputError(f"{name} must be finite; integer token is too large")
     try:
         value = float(v)
     except (TypeError, ValueError, OverflowError) as exc:
@@ -182,6 +193,13 @@ def _finite_number(v, name: str, *, allow_numeric_string: bool = False) -> float
     return value
 
 
+def _parse_json_integer(value: str) -> int | _OversizedJsonInteger:
+    try:
+        return int(value)
+    except ValueError:
+        return _OversizedJsonInteger(value)
+
+
 def _reject_nonfinite_constant(value: str):
     raise InputError(f"non-finite JSON number {value!r} is not allowed")
 
@@ -189,11 +207,19 @@ def _reject_nonfinite_constant(value: str):
 def parse_input(text: str) -> SlagModelConfig:
     """Parse and validate a JSON input string (PLAN.md section 5)."""
     try:
-        data = json.loads(text, parse_constant=_reject_nonfinite_constant)
+        data = json.loads(
+            text,
+            parse_constant=_reject_nonfinite_constant,
+            parse_int=_parse_json_integer,
+        )
+    except InputError:
+        raise
     except json.JSONDecodeError as exc:
         raise InputError(
             f"malformed JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
         ) from exc
+    except ValueError as exc:
+        raise InputError(f"invalid JSON value: {exc}") from exc
     if not isinstance(data, dict):
         raise InputError("input JSON must be a top-level object")
 
@@ -254,7 +280,10 @@ def parse_input(text: str) -> SlagModelConfig:
     metal: dict[str, float] = {}
     for k in METAL_INPUT_KEYS:
         v = metal_raw.get(k, 0.0)
-        metal[k] = _finite_number(v, f"metal_wtpc.{k}")
+        value = _finite_number(v, f"metal_wtpc.{k}")
+        if value < 0:
+            raise InputError(f"metal_wtpc.{k} must be non-negative, got {value}")
+        metal[k] = value
 
     # options
     options, explicit_opts = _parse_options(data.get("options"), warnings)
