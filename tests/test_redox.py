@@ -65,8 +65,9 @@ def test_cr_split_regression():
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
     state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
+    gamma = state.activities.gamma_conventional_by_species
     rhs = (
-        state.k_Cr * state.a_Cr * state.gamma["CrO1.5"] ** 2 * state.N
-        / (state.gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
+        state.k_Cr * state.a_Cr * gamma["CrO1.5"] ** 2 * state.N
+        / (gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
     )
     assert state.r_Cr**3 / (1.0 + state.r_Cr) == pytest.approx(rhs, rel=1e-8)

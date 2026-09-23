@@ -26,9 +26,10 @@ The model closes the slag–metal system with **one** oxygen potential $P_{O_2}$
 
 $$RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{j} \sum_{k} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k$$
 
-   A linear conversion $\Delta G_{conv} = A + BT$ shifts the raw
-   regular-solution coefficients onto the **pure-stable-oxide (Raoultian)
-   standard state** used by thermodynamic software such as HSC Chemistry.
+   The model reports both regular-solution cation activities and conventional
+   oxide activities when a documented conversion is available. Ban-ya Eq. 24
+   uses the two Fe regular-solution coefficients; the Fe–O oxygen-potential
+   closure uses conventional $a_{FeO}$.
 
 2. **Oxygen potential.** $P_{O_2}$ is *not* an input — the FeO-rich slag
    buffers it through the Fe–O equilibrium:
@@ -133,8 +134,8 @@ them into Fe²⁺/Fe³⁺ and Cr²⁺/Cr³⁺ during the solve.
 | `cross_terms`      | `full` / `major5`                        | `full`                 | RSM cross-term set. `major5` exists **only** to reproduce the reference workbook in tests. |
 | `ti_handling`      | `exclude_renormalize` / `as_excel`       | `exclude_renormalize`  | `as_excel` counts Ti⁴⁺ in the cation sum with zero α (reproduces the workbook); default drops TiO₂ and renormalises (~0.5 % difference). |
 | `sio2_conversion`  | `workbook` / `banya`                     | `workbook`             | SiO₂ standard-state conversion. The 2.6 kJ difference moves γ(SiO₂) by ~1.19×. |
-| `fe2o3_conversion` | `none` / `{ "A": ..., "B": ... }`        | `none`                 | Optional custom ΔG conversion for FeO₁.₅ (`ΔG = A + B·T`, J/mol). |
-| `al2o3_conversion` | `none` / `{ "A": ..., "B": ... }`        | `none`                 | **Data gap** — see below. |
+| `fe2o3_conversion` | `none` / `{ "A": number, "B": number, "standard_state": string }` | `none` | Optional custom ΔG conversion for FeO₁.₅ (`ΔG = A + B·T`, J/mol of FeO₁.₅); the caller must identify its reference state. |
+| `al2o3_conversion` | `none` / `{ "A": number, "B": number, "standard_state": string }` | `none` | Optional custom conversion for `Al2O3(reference) = 2 AlO1.5(RS)`; A and B are J/mol of Al₂O₃ formula unit and require a reference-state label. |
 | `a_Fe`             | `unity` / `xfe`                          | `unity`                | Iron activity: 1.0 (pure liquid Fe) or the metal mole fraction. |
 | `iron_input`       | `FeO_total` / `Fe_total`                 | `FeO_total`            | Iron input form (must match the key used in `slag_wtpc`). |
 | `chromium_input`   | `Cr2O3_total` / `Cr_total`               | `Cr2O3_total`          | Chromium input form (must match the key used in `slag_wtpc`). |
@@ -148,16 +149,22 @@ them into Fe²⁺/Fe³⁺ and Cr²⁺/Cr³⁺ during the solve.
   redox split the oxide mass can drift slightly from 100 g because Fe₂O₃/Cr₂O₃
   carry more oxygen than FeO/CrO — this is expected, not an error.)
 * Missing `metal_wtpc` components default to 0.0.
+* Custom conversion objects must include numeric `A`, numeric `B`, and a
+  non-empty `standard_state` label. Legacy `A`/`B`-only objects require this
+  label to be added before they can be read.
 
 ## Output JSON reference
 
-The report written with `-o` has five top-level blocks.
+The report written with `-o` has `schema_version: 2`, followed by `input`,
+`solution`, `metal`, `equilibrium`, and `warnings`.
 
 ### `input`
 
 An exact echo of the resolved inputs: `temperature_K`, `P_CO_atm`,
 `slag_wtpc`, `metal_wtpc`, and `options` (with all defaults filled in and the
-custom conversions shown as `none` when unset).
+custom conversions shown as `none` when unset or as labeled `{ "A", "B",
+"standard_state" }` objects). The options object can be passed back to the
+input parser without changing either custom conversion.
 
 ### `solution`
 
@@ -171,18 +178,43 @@ The converged slag state.
 | `r_Cr`         | Converged ratio $r_{Cr} = n_{Cr^{2+}} / n_{Cr^{3+}}$. |
 | `iterations`   | Number of damped fixed-point iterations to convergence. |
 | `split_wtpc`   | Slag composition (wt%) **after** redox splitting: `FeO`, `Fe2O3`, `CrO`, `Cr2O3` plus the un-split oxides. |
-| `components`   | Array of per-oxide rows (see below). |
+| `components`   | Array of per-cation rows distinguishing regular-solution and conventional activities (see below). |
 
-Each entry in `components`:
+Each modeled cation entry in `components`:
 
-| Field            | Description |
-|------------------|-------------|
-| `oxide`          | Oxide label (e.g. `FeO`, `SiO2`, `CrO1.5`). |
-| `X`              | Cation mole fraction $X_i$ of the corresponding cation. |
-| `RTln_gamma_RS`  | $RT\ln\gamma_i^{RS}$ on the regular-solution scale (J/mol). |
-| `DeltaG_conv`    | Standard-state conversion $\Delta G_{conv} = A + BT$ (J/mol). |
-| `gamma`          | Final activity coefficient $\gamma_i$ (pure-stable-oxide scale). |
-| `a`              | Activity $a_i = \gamma_i X_i$. |
+| Field | Description |
+|-------|-------------|
+| `cation` | Cation identity, such as `Fe2+` or `P5+`. |
+| `rs_species` | Regular-solution species per cation; P⁵⁺ uses `PO2.5` and Al³⁺ uses `AlO1.5`. |
+| `X_cation` | Cation mole fraction on the RSM basis. |
+| `RTln_gamma_RS_J_per_mol_cation` | $RT\ln\gamma_i^{RS}$, in J/mol of cation. |
+| `gamma_RS` | Regular-solution coefficient for that cation. |
+| `a_RS` | Regular-solution activity, $X_{cation}\gamma_{RS}$. |
+| `conventional` | `null` when no conversion is documented; otherwise the conventional species, its `standard_state`, number of RSM units per formula unit, conversion energy, and activity. |
+| `conventional_unavailable_reason` | Explanation when `conventional` is `null`. |
+
+The nested `conventional` object includes `gamma` and
+`gamma_fraction_basis: "X_cation"` only for one-cation species. `P2O5` and
+custom `Al2O3` conversions each use two RSM units and do not report a
+conventional gamma on the cation-fraction basis. By default, conventional
+activities for `FeO1.5` and `Al2O3` are unavailable. The optional legacy Ti
+row appears only with `ti_handling: "as_excel"`; it has
+`model_status: "denominator_only_legacy"` and carries no activity.
+
+The `standard_state` field keeps the source wording. For example, the workbook
+silica option is reported as `SiO2(s), polymorph unspecified; Xiao, Holappa &
+Reuter (2002) Table IV`; the model does not guess an unstated crystal phase.
+
+### Migrating from report v1
+
+Read `schema_version` before consuming a report. In v2, component fields
+`oxide`, `X`, `RTln_gamma_RS`, `DeltaG_conv`, `gamma`, and `a` are removed.
+Use `cation`, `rs_species`, `X_cation`, `RTln_gamma_RS_J_per_mol_cation`,
+`gamma_RS`, and `a_RS` for the RSM result. Read the nested `conventional`
+object for a conventional oxide activity; it can be `null`, so consumers must
+handle unavailability instead of treating it as zero. Custom conversion
+inputs and echoed options now use labeled objects containing `A`, `B`, and
+`standard_state`.
 
 ### `metal`
 

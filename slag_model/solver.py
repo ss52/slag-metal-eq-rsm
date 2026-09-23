@@ -5,8 +5,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from .constants import R
-from .data import CATION_TO_OXIDE
 from .equilibrium import k_CO, k_Cr, k_FeO, p_o2_from_slag
 from .metal import (
     activity_C,
@@ -18,9 +16,10 @@ from .metal import (
 )
 from .redox import cr_ratio, fe_ratio_ban_ya
 from .rsm import (
+    SlagActivities,
     SlagSplit,
+    build_slag_activities,
     cation_fractions,
-    convert_gammas,
     rsm_gamma_rtln,
     split_slag,
 )
@@ -54,9 +53,7 @@ class SolveResult:
     X: dict[str, float]
     N: float
     rtln_gamma_rs: dict[str, float]
-    delta_g_conv: dict[str, float]
-    gamma: dict[str, float]
-    a_slag: dict[str, float]
+    activities: SlagActivities
     f_metal: dict[str, float]
     a_C: float
     a_Cr: float
@@ -79,27 +76,27 @@ def compute_state(
     split = split_slag(cfg.slag_wtpc, o.iron_input, o.chromium_input, r_Fe, r_Cr)
     X, N = cation_fractions(split.n_cations, o.ti_handling)
     rtln_rs = rsm_gamma_rtln(X, o.cross_terms)
-    gamma, delta_g = convert_gammas(
+    activities = build_slag_activities(
         rtln_rs,
+        X,
         T,
         sio2_conversion=o.sio2_conversion,
         fe2o3_conversion=o.fe2o3_conversion,
         al2o3_conversion=o.al2o3_conversion,
     )
-    if "Ti4+" in X:
-        gamma["TiO2"] = 1.0
-        delta_g["TiO2"] = 0.0
 
-    a_FeO = gamma["FeO"] * X["Fe2+"]
+    a_FeO = activities.a_conventional_by_species["FeO"]
     a_Fe = 1.0 if o.a_Fe == "unity" else x_fe_metal(cfg.metal_wtpc, C_wtpc)
 
     k_FeO_val = k_FeO(T)
     P_O2 = p_o2_from_slag(a_FeO, T, a_Fe)
 
-    rt = R * T
-    gamma_feo_rs = math.exp(rtln_rs["Fe2+"] / rt)
-    gamma_feo1_5_rs = math.exp(rtln_rs["Fe3+"] / rt)
-    r_Fe_n = fe_ratio_ban_ya(T, P_O2, gamma_feo_rs, gamma_feo1_5_rs)
+    r_Fe_n = fe_ratio_ban_ya(
+        T,
+        P_O2,
+        activities.gamma_rs_by_cation["Fe2+"],
+        activities.gamma_rs_by_cation["Fe3+"],
+    )
 
     f = wipf_factors(cfg.metal_wtpc, C_wtpc)
     a_C = activity_C(f, C_wtpc)
@@ -107,7 +104,13 @@ def compute_state(
 
     n_Cr_tot = split.n_totals["Cr"]
     if n_Cr_tot > 0.0:
-        rhs = k_Cr(T) * a_Cr * gamma["CrO1.5"] ** 2 * N / (gamma["CrO"] ** 3 * n_Cr_tot)
+        rhs = (
+            k_Cr(T)
+            * a_Cr
+            * activities.gamma_conventional_by_species["CrO1.5"] ** 2
+            * N
+            / (activities.gamma_conventional_by_species["CrO"] ** 3 * n_Cr_tot)
+        )
         r_Cr_n = cr_ratio(rhs)
     else:
         r_Cr_n = 1.0
@@ -115,19 +118,14 @@ def compute_state(
     k_CO_val = k_CO(T)
     C_n = balanced_carbon(cfg.P_CO_atm, k_CO_val, P_O2, f["C"])
 
-    a_slag: dict[str, float] = {}
-    for cation, oxide in CATION_TO_OXIDE.items():
-        if cation in X:
-            a_slag[oxide] = gamma[oxide] * X[cation]
-    if "Ti4+" in X:
-        a_slag["TiO2"] = X["Ti4+"]
-
     q_over_k: dict[str, float | None] = {
         "FeO": (a_FeO / (a_Fe * math.sqrt(P_O2))) / k_FeO_val,
         "CO": (cfg.P_CO_atm / (a_C * math.sqrt(P_O2))) / k_CO_val,
     }
-    if a_Cr > 0.0 and a_slag.get("CrO", 0.0) > 0.0:
-        q_over_k["Cr"] = (a_slag["CrO"] ** 3 / (a_slag["CrO1.5"] ** 2 * a_Cr)) / k_Cr(T)
+    a_CrO = activities.a_conventional_by_species["CrO"]
+    a_CrO1_5 = activities.a_conventional_by_species["CrO1.5"]
+    if a_Cr > 0.0 and a_CrO > 0.0:
+        q_over_k["Cr"] = (a_CrO**3 / (a_CrO1_5**2 * a_Cr)) / k_Cr(T)
     else:
         q_over_k["Cr"] = None
 
@@ -143,9 +141,7 @@ def compute_state(
         X=X,
         N=N,
         rtln_gamma_rs=rtln_rs,
-        delta_g_conv=delta_g,
-        gamma=gamma,
-        a_slag=a_slag,
+        activities=activities,
         f_metal=f,
         a_C=a_C,
         a_Cr=a_Cr,
@@ -209,17 +205,17 @@ def solve_redox_fixed_po2(cfg, P_O2: float, C: float = 0.018) -> SolveResult:
         r_Fe_n = fe_ratio_ban_ya(
             cfg.temperature_K,
             P_O2,
-            math.exp(current_state.rtln_gamma_rs["Fe2+"] / (R * cfg.temperature_K)),
-            math.exp(current_state.rtln_gamma_rs["Fe3+"] / (R * cfg.temperature_K)),
+            current_state.activities.gamma_rs_by_cation["Fe2+"],
+            current_state.activities.gamma_rs_by_cation["Fe3+"],
         )
         n_Cr_tot = current_state.split.n_totals["Cr"]
         if n_Cr_tot > 0.0:
             rhs = (
                 k_Cr(cfg.temperature_K)
                 * current_state.a_Cr
-                * current_state.gamma["CrO1.5"] ** 2
+                * current_state.activities.gamma_conventional_by_species["CrO1.5"] ** 2
                 * current_state.N
-                / (current_state.gamma["CrO"] ** 3 * n_Cr_tot)
+                / (current_state.activities.gamma_conventional_by_species["CrO"] ** 3 * n_Cr_tot)
             )
             r_Cr_n = cr_ratio(rhs)
         else:

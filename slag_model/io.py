@@ -12,6 +12,7 @@ from .data import (
     IRON_INPUT_KEYS,
     METAL_INPUT_KEYS,
 )
+from .rsm import ConversionSpec
 
 KNOWN_TOP_KEYS = {
     "temperature_K",
@@ -45,8 +46,8 @@ class Options:
     cross_terms: str = "full"
     ti_handling: str = "exclude_renormalize"
     sio2_conversion: str = "workbook"
-    fe2o3_conversion: tuple[float, float] | None = None
-    al2o3_conversion: tuple[float, float] | None = None
+    fe2o3_conversion: ConversionSpec | None = None
+    al2o3_conversion: ConversionSpec | None = None
     a_Fe: str = "unity"
     iron_input: str = "FeO_total"
     chromium_input: str = "Cr2O3_total"
@@ -56,12 +57,8 @@ class Options:
             "cross_terms": self.cross_terms,
             "ti_handling": self.ti_handling,
             "sio2_conversion": self.sio2_conversion,
-            "fe2o3_conversion": list(self.fe2o3_conversion)
-            if self.fe2o3_conversion is not None
-            else "none",
-            "al2o3_conversion": list(self.al2o3_conversion)
-            if self.al2o3_conversion is not None
-            else "none",
+            "fe2o3_conversion": _conversion_as_dict(self.fe2o3_conversion),
+            "al2o3_conversion": _conversion_as_dict(self.al2o3_conversion),
             "a_Fe": self.a_Fe,
             "iron_input": self.iron_input,
             "chromium_input": self.chromium_input,
@@ -78,17 +75,41 @@ class SlagModelConfig:
     warnings: list[str] = field(default_factory=list)
 
 
-def _parse_custom_conversion(v, name: str) -> tuple[float, float] | None:
+def _conversion_as_dict(conversion: ConversionSpec | None) -> dict[str, float | str] | str:
+    if conversion is None:
+        return "none"
+    return {
+        "A": conversion.A,
+        "B": conversion.B,
+        "standard_state": conversion.standard_state,
+    }
+
+
+def _parse_custom_conversion(v, name: str) -> ConversionSpec | None:
     if v is None or v == "none":
         return None
     if isinstance(v, dict):
-        try:
-            A = float(v["A"])
-            B = float(v["B"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise InputError(f"{name}: custom conversion must have numeric 'A' and 'B'") from exc
-        return (A, B)
-    raise InputError(f"{name} must be 'none' or an object with numeric 'A' and 'B'")
+        required = {"A", "B", "standard_state"}
+        missing = required - set(v)
+        if missing:
+            raise InputError(
+                f"{name}: migration required; custom conversions must include numeric "
+                "'A' and 'B' plus a non-empty 'standard_state' label"
+            )
+        extra = set(v) - required
+        if extra:
+            raise InputError(f"{name} has unknown fields: {sorted(extra)}")
+        A, B = v["A"], v["B"]
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in (A, B)):
+            raise InputError(f"{name}: 'A' and 'B' must be numbers")
+        standard_state = v["standard_state"]
+        if not isinstance(standard_state, str) or not standard_state.strip():
+            raise InputError(f"{name}: 'standard_state' must be a non-empty string")
+        return ConversionSpec(float(A), float(B), standard_state)
+    raise InputError(
+        f"{name} must be 'none' or an object with numeric 'A', numeric 'B', "
+        "and a non-empty 'standard_state'"
+    )
 
 
 def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[str]]:
@@ -122,8 +143,8 @@ def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[
 
     if al2o3 is None:
         warnings.append(
-            "Al2O3 conversion factor is TBD (PLAN.md 12.1): using A=0, B=0; "
-            "gamma_Al2O3 is on the R.S. scale."
+            "Al2O3 conventional activity is unavailable because no documented "
+            "conversion is configured."
         )
 
     iron_input = raw.get("iron_input", "FeO_total")
@@ -257,32 +278,50 @@ def load_input(path: str | Path) -> SlagModelConfig:
 
 
 def build_report(cfg: SlagModelConfig, result) -> dict:
-    """Build the JSON-serializable report from a converged SolveResult."""
-    from .data import CATION_TO_OXIDE
+    """Build the v2 report by translating the converged result without recalculation."""
+    from .data import CATION_TO_OXIDE, CATION_TO_RS_SPECIES
 
     comps = []
     for cation, oxide in CATION_TO_OXIDE.items():
         if cation not in result.X:
             continue
+        activities = result.activities
+        if oxide in activities.a_conventional_by_species:
+            conventional = {
+                "species": oxide,
+                "standard_state": activities.standard_state_by_species[oxide],
+                "rs_units_per_species": 2 if oxide in {"P2O5", "Al2O3"} else 1,
+                "a": activities.a_conventional_by_species[oxide],
+                "DeltaG_conversion_J_per_mol_species": (
+                    activities.delta_g_conversion_J_per_mol_species[oxide]
+                ),
+            }
+            if oxide in activities.gamma_conventional_by_species:
+                conventional["gamma"] = activities.gamma_conventional_by_species[oxide]
+                conventional["gamma_fraction_basis"] = "X_cation"
+            unavailable_reason = None
+        else:
+            conventional = None
+            unavailable_reason = "no documented conversion"
         comps.append(
             {
-                "oxide": oxide,
-                "X": result.X[cation],
-                "RTln_gamma_RS": result.rtln_gamma_rs[cation],
-                "DeltaG_conv": result.delta_g_conv[oxide],
-                "gamma": result.gamma[oxide],
-                "a": result.a_slag.get(oxide, 0.0),
+                "cation": cation,
+                "rs_species": CATION_TO_RS_SPECIES[cation],
+                "X_cation": result.X[cation],
+                "RTln_gamma_RS_J_per_mol_cation": result.rtln_gamma_rs[cation],
+                "gamma_RS": activities.gamma_rs_by_cation[cation],
+                "a_RS": activities.a_rs_by_cation[cation],
+                "conventional": conventional,
+                "conventional_unavailable_reason": unavailable_reason,
             }
         )
     if "Ti4+" in result.X:
         comps.append(
             {
-                "oxide": "TiO2",
-                "X": result.X["Ti4+"],
-                "RTln_gamma_RS": 0.0,
-                "DeltaG_conv": 0.0,
-                "gamma": 1.0,
-                "a": result.X["Ti4+"],
+                "cation": "Ti4+",
+                "rs_species": None,
+                "X_cation": result.X["Ti4+"],
+                "model_status": "denominator_only_legacy",
             }
         )
 
@@ -296,6 +335,7 @@ def build_report(cfg: SlagModelConfig, result) -> dict:
     }
 
     return {
+        "schema_version": 2,
         "input": {
             "temperature_K": cfg.temperature_K,
             "P_CO_atm": cfg.P_CO_atm,

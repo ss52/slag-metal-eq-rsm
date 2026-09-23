@@ -57,19 +57,27 @@ def test_rtln_gamma_rs_per_cation(workbook_state):
 
 
 def test_converted_gamma_FeO(workbook_state):
-    assert workbook_state.gamma["FeO"] == pytest.approx(1.75, abs=0.01)
+    assert workbook_state.activities.gamma_conventional_by_species["FeO"] == pytest.approx(
+        1.75, abs=0.01
+    )
 
 
 def test_converted_gamma_SiO2(workbook_state):
-    assert workbook_state.gamma["SiO2"] == pytest.approx(0.98, abs=0.01)
+    assert workbook_state.activities.gamma_conventional_by_species["SiO2"] == pytest.approx(
+        0.98, abs=0.01
+    )
 
 
 def test_converted_gamma_CrO(workbook_state):
-    assert workbook_state.gamma["CrO"] == pytest.approx(4.79, abs=0.02)
+    assert workbook_state.activities.gamma_conventional_by_species["CrO"] == pytest.approx(
+        4.79, abs=0.02
+    )
 
 
 def test_converted_gamma_CrO1_5(workbook_state):
-    assert workbook_state.gamma["CrO1.5"] == pytest.approx(7.71, abs=0.02)
+    assert workbook_state.activities.gamma_conventional_by_species["CrO1.5"] == pytest.approx(
+        7.71, abs=0.02
+    )
 
 
 def test_sum_X(workbook_state):
@@ -81,8 +89,9 @@ def test_fixed_po2_chromium_reaction():
     cfg = load_input(SLAG_PATH)
     state = solve_redox_fixed_po2(cfg, P_O2=1e-9, C=0.018)
     r = state.r_Cr
+    gamma = state.activities.gamma_conventional_by_species
     rhs = (
-        state.k_Cr * state.a_Cr * state.gamma["CrO1.5"] ** 2 * state.N
-        / (state.gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
+        state.k_Cr * state.a_Cr * gamma["CrO1.5"] ** 2 * state.N
+        / (gamma["CrO"] ** 3 * state.split.n_totals["Cr"])
     )
     assert r**3 / (1.0 + r) == pytest.approx(rhs, rel=1e-8)

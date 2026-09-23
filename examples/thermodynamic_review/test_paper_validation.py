@@ -18,7 +18,7 @@ from slag_model.data import ALPHA, CATION_ORDER, CONVERSION_DEFAULTS, EIJ, SIO2_
 from slag_model.equilibrium import k_Cr
 from slag_model.io import load_input
 from slag_model.redox import fe_ratio_ban_ya
-from slag_model.rsm import convert_gammas, rsm_gamma_rtln
+from slag_model.rsm import build_slag_activities, rsm_gamma_rtln
 from slag_model.solver import compute_state, solve_redox_fixed_po2
 
 REVIEW_DIR = Path(__file__).resolve().parent
@@ -117,18 +117,19 @@ def test_xiao_chromium_equilibrium_is_on_library_metal_standard_state():
     assert k_Cr(temperature) == pytest.approx(expected, rel=1e-12)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect: P2O5 is treated as one PO2.5 unit.",
-)
 def test_banya_p2o5_formula_unit_activity_relation():
     temperature = 1873.0
     x_po2_5 = 0.02
     rtln_gamma_po2_5_rs = 4000.0
-    gamma, delta_g = convert_gammas({"P5+": rtln_gamma_po2_5_rs}, temperature)
-    library_activity = gamma["P2O5"] * x_po2_5
+    activities = build_slag_activities(
+        {"P5+": rtln_gamma_po2_5_rs},
+        {"P5+": x_po2_5},
+        temperature,
+    )
+    library_activity = activities.a_conventional_by_species["P2O5"]
     pseudo_activity = math.exp(rtln_gamma_po2_5_rs / (R * temperature)) * x_po2_5
-    expected = pseudo_activity**2 * math.exp(delta_g["P2O5"] / (R * temperature))
+    a, b = CASES["banya_1993"]["conversion_A_plus_B_T_J_per_mol"]["P2O5"]
+    expected = pseudo_activity**2 * math.exp((a + b * temperature) / (R * temperature))
     assert library_activity == pytest.approx(expected, rel=1e-12, abs=0.0)
 
 
@@ -167,10 +168,10 @@ def test_xiao_2002_table_i_experimental_activity_envelope(case):
         "Cr3+": mol_percent["CrO1.5"] / total,
     }
     rtln = rsm_gamma_rtln(x, "full")
-    gamma, _ = convert_gammas(rtln, 1873.0, sio2_conversion="workbook")
+    full_x = {cation: x.get(cation, 0.0) for cation in CATION_ORDER}
+    activities = build_slag_activities(rtln, full_x, 1873.0, sio2_conversion="workbook")
     calculated = {
-        "CrO": gamma["CrO"] * x["Cr2+"],
-        "CrO1.5": gamma["CrO1.5"] * x["Cr3+"],
+        species: activities.a_conventional_by_species[species] for species in ("CrO", "CrO1.5")
     }
     factor = 2.1
     for oxide, measured in case["measured_activity"].items():

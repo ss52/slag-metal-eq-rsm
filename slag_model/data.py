@@ -193,9 +193,8 @@ SIO2_CONVERSION_STANDARD_STATES: dict[str, str] = {
     "banya": "SiO2(beta-cristobalite), Ban-ya (1993) Table 3",
     "workbook": "SiO2(s), polymorph unspecified; Xiao, Holappa & Reuter (2002) Table IV",
 }
-# The new explicit activity builder leaves FeO1.5 and Al2O3 unavailable unless
-# a labeled custom conversion is supplied. Legacy convert_gammas retains its
-# historical zero-conversion behavior until Task 4 migrates its caller.
+# The explicit activity builder leaves FeO1.5 and Al2O3 unavailable unless a
+# labeled custom conversion is supplied.
 
 # Equilibrium reaction coefficients (Delta G = A + B*T, J/mol)
 DELTA_G_FEO: tuple[float, float] = (-232600.0, 47.9)  # Fe(l) + 1/2 O2 = FeO(l)

@@ -53,19 +53,23 @@ def test_fixed_po2_diagnostics_use_reported_pressure():
     assert state.q_over_k["CO"] == pytest.approx(q_co, rel=1e-12)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known serialization defect: Options.as_dict emits arrays that its parser rejects.",
-)
 def test_custom_conversion_report_round_trip():
     payload = _payload()
-    payload["options"]["fe2o3_conversion"] = {"A": 100.0, "B": -0.1}
-    payload["options"]["al2o3_conversion"] = {"A": 200.0, "B": -0.2}
+    payload["options"]["fe2o3_conversion"] = {
+        "A": 100.0,
+        "B": -0.1,
+        "standard_state": "custom FeO1.5 reference state",
+    }
+    payload["options"]["al2o3_conversion"] = {
+        "A": 200.0,
+        "B": -0.2,
+        "standard_state": "custom Al2O3 reference state",
+    }
     config = parse_input(json.dumps(payload))
     payload["options"] = config.options.as_dict()
     reparsed = parse_input(json.dumps(payload))
-    assert reparsed.options.fe2o3_conversion == (100.0, -0.1)
-    assert reparsed.options.al2o3_conversion == (200.0, -0.2)
+    assert reparsed.options.fe2o3_conversion == config.options.fe2o3_conversion
+    assert reparsed.options.al2o3_conversion == config.options.al2o3_conversion
 
 
 @pytest.mark.xfail(

@@ -7,6 +7,9 @@ import pathlib
 import pytest
 
 from slag_model.io import load_input
+from slag_model.redox import cr_ratio, fe_ratio_ban_ya
+from slag_model.rsm import SlagActivities
+from slag_model.solver import compute_state
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SLAG_PATH = ROOT / "examples" / "eaf_slag_01.json"
@@ -70,3 +73,33 @@ def test_QK_FeO_unity(default_result):
 
 def test_QK_CO_unity(default_result):
     assert default_result.q_over_k["CO"] == pytest.approx(1.0, abs=1e-6)
+
+
+def test_solve_result_uses_explicit_activity_bases(default_result):
+    assert isinstance(default_result.activities, SlagActivities)
+    assert default_result.a_FeO == pytest.approx(
+        default_result.activities.a_conventional_by_species["FeO"]
+    )
+
+
+def test_compute_state_uses_rs_fe_and_conventional_chromium_activities():
+    cfg = load_input(SLAG_PATH)
+    result, targets = compute_state(cfg, r_Fe=0.10, r_Cr=1.0, C_wtpc=0.02)
+    activities = result.activities
+
+    expected_fe = fe_ratio_ban_ya(
+        cfg.temperature_K,
+        result.P_O2_atm,
+        activities.gamma_rs_by_cation["Fe2+"],
+        activities.gamma_rs_by_cation["Fe3+"],
+    )
+    assert targets["r_Fe"] == pytest.approx(expected_fe, rel=1e-12)
+
+    cr_rhs = (
+        result.k_Cr
+        * result.a_Cr
+        * activities.gamma_conventional_by_species["CrO1.5"] ** 2
+        * result.N
+        / (activities.gamma_conventional_by_species["CrO"] ** 3 * result.split.n_totals["Cr"])
+    )
+    assert targets["r_Cr"] == pytest.approx(cr_ratio(cr_rhs), rel=1e-12)

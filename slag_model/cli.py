@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from .data import CATION_TO_OXIDE
 from .io import InputError, build_report, load_input
 from .solver import NonConvergenceError, solve
 
@@ -38,15 +39,37 @@ def _print_report(report: dict) -> None:
         print(f"    {k:12s} {v:10.4f}")
     print()
 
-    print("  Component table:")
-    print(
-        f"    {'oxide':8s}  {'X':>10s}  {'RTln(gRS)':>12s}"
-        f"  {'dG_conv':>12s}  {'gamma':>10s}  {'a':>10s}"
-    )
+    print("  Component activities:")
     for c in sol["components"]:
+        if c.get("model_status") == "denominator_only_legacy":
+            print(
+                f"    {c['cation']:5s} X_cation={c['X_cation']:.6f}  "
+                "denominator-only legacy; activity unavailable"
+            )
+            continue
         print(
-            f"    {c['oxide']:8s}  {c['X']:10.6f}  {c['RTln_gamma_RS']:12.3f}"
-            f"  {c['DeltaG_conv']:12.3f}  {c['gamma']:10.4f}  {c['a']:10.4f}"
+            f"    {c['cation']:5s} ({c['rs_species']})  "
+            f"X_cation={c['X_cation']:.6f}  "
+            f"RTln(gamma_RS)={c['RTln_gamma_RS_J_per_mol_cation']:.3f} J/mol cation  "
+            f"gamma_RS={c['gamma_RS']:.4f}  a_RS={c['a_RS']:.6g}"
+        )
+        conventional = c["conventional"]
+        if conventional is None:
+            print(
+                f"      conventional {CATION_TO_OXIDE[c['cation']]} unavailable: "
+                f"{c['conventional_unavailable_reason']}"
+            )
+            continue
+        gamma_text = (
+            f", gamma={conventional['gamma']:.6g} (X_cation basis)"
+            if "gamma" in conventional
+            else ""
+        )
+        print(
+            f"      conventional {conventional['species']} "
+            f"[{conventional['standard_state']}; "
+            f"{conventional['rs_units_per_species']} R.S. unit(s)]: "
+            f"a={conventional['a']:.6g}{gamma_text}"
         )
     print()
 
