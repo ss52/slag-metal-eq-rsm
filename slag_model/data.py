@@ -139,14 +139,30 @@ CATION_TO_OXIDE: dict[str, str] = {
 }
 OXIDE_TO_CATION: dict[str, str] = {v: k for k, v in CATION_TO_OXIDE.items()}
 
+# R.S. pseudo-species are defined per cation and are distinct from the
+# conventional oxide formula units used by CATION_TO_OXIDE.
+CATION_TO_RS_SPECIES: dict[str, str] = {
+    "Fe2+": "FeO",
+    "Fe3+": "FeO1.5",
+    "Ca2+": "CaO",
+    "Mg2+": "MgO",
+    "Mn2+": "MnO",
+    "Si4+": "SiO2",
+    "Al3+": "AlO1.5",
+    "P5+": "PO2.5",
+    "Cr3+": "CrO1.5",
+    "Cr2+": "CrO",
+}
+
 # Input composition keys (analytical slag form)
 INPUT_OXIDE_KEYS: list[str] = ["SiO2", "CaO", "MgO", "Al2O3", "MnO", "TiO2", "P2O5"]
 IRON_INPUT_KEYS: list[str] = ["FeO_total", "Fe_total"]
 CHROMIUM_INPUT_KEYS: list[str] = ["Cr2O3_total", "Cr_total"]
 METAL_INPUT_KEYS: list[str] = ["Cr", "Mn", "P"]
 
-# Standard-state conversion factors: Delta G_conv = A + B*T (J/mol).
-# R*T*ln(gamma_i) = R*T*ln(gamma_i^RS) + A_i + B_i*T
+# Standard-state conversion factors: Delta G_conv = A + B*T (J/mol of the
+# conventional species). P2O5 is a two-cation formula-unit conversion; it must
+# not be interpreted as a conventional gamma on the cation-fraction basis.
 CONVERSION_DEFAULTS: dict[str, tuple[float, float]] = {
     "FeO": (-8540.0, 7.142),
     "CaO": (18160.0, -23.309),
@@ -160,7 +176,26 @@ SIO2_CONVERSIONS: dict[str, tuple[float, float]] = {
     "workbook": (51346.0, -13.88),
     "banya": (27030.0, -1.983),
 }
-# FeO1.5 and Al2O3 default to "none" (A=0, B=0); optionally overridden via options.
+
+# Conventional reference states from the cited conversion tables. Keep the
+# source's wording when it does not identify a pure oxide phase; do not infer
+# a phase from a species formula.
+CONVERSION_STANDARD_STATES: dict[str, str] = {
+    "FeO": "Ban-ya (1993) Table 3: Fe_tO(l) equilibrated with Fe",
+    "CaO": "CaO(s), Ban-ya (1993) Table 3",
+    "MgO": "MgO(s), Ban-ya (1993) Table 3",
+    "MnO": "MnO(s), Ban-ya (1993) Table 3",
+    "P2O5": "P2O5(l), Ban-ya (1993) Table 3",
+    "CrO": "CrO(liq), Xiao, Holappa & Reuter (2002) Table IV",
+    "CrO1.5": "CrO1.5(s), Xiao, Holappa & Reuter (2002) Table IV",
+}
+SIO2_CONVERSION_STANDARD_STATES: dict[str, str] = {
+    "banya": "SiO2(beta-cristobalite), Ban-ya (1993) Table 3",
+    "workbook": "SiO2(s), polymorph unspecified; Xiao, Holappa & Reuter (2002) Table IV",
+}
+# The new explicit activity builder leaves FeO1.5 and Al2O3 unavailable unless
+# a labeled custom conversion is supplied. Legacy convert_gammas retains its
+# historical zero-conversion behavior until Task 4 migrates its caller.
 
 # Equilibrium reaction coefficients (Delta G = A + B*T, J/mol)
 DELTA_G_FEO: tuple[float, float] = (-232600.0, 47.9)  # Fe(l) + 1/2 O2 = FeO(l)

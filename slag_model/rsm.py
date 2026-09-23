@@ -13,8 +13,10 @@ from .data import (
     CATION_ORDER,
     CATION_TO_OXIDE,
     CONVERSION_DEFAULTS,
+    CONVERSION_STANDARD_STATES,
     INPUT_OXIDE_KEYS,
     OXIDE_TO_CATION,
+    SIO2_CONVERSION_STANDARD_STATES,
     SIO2_CONVERSIONS,
 )
 
@@ -26,6 +28,27 @@ class SlagSplit:
     n_cations: dict[str, float]
     n_totals: dict[str, float]
     wt_split: dict[str, float]
+
+
+@dataclass(frozen=True)
+class ConversionSpec:
+    """Labeled conversion to a caller-selected conventional standard state."""
+
+    A: float
+    B: float
+    standard_state: str
+
+
+@dataclass(frozen=True)
+class SlagActivities:
+    """Regular-solution and conventional activities on their stated bases."""
+
+    gamma_rs_by_cation: dict[str, float]
+    a_rs_by_cation: dict[str, float]
+    gamma_conventional_by_species: dict[str, float]
+    a_conventional_by_species: dict[str, float]
+    delta_g_conversion_J_per_mol_species: dict[str, float]
+    standard_state_by_species: dict[str, str]
 
 
 def split_slag(
@@ -145,6 +168,81 @@ def rsm_gamma_rtln(X: dict[str, float], cross_terms: str) -> dict[str, float]:
             t += (ALPHA[i, j] + ALPHA[i, k] - ALPHA[j, k]) * Xv[j] * Xv[k]
         out[cation] = s + t
     return out
+
+
+def build_slag_activities(
+    rtln_gamma_rs: dict[str, float],
+    X: dict[str, float],
+    T: float,
+    *,
+    sio2_conversion: str = "workbook",
+    fe2o3_conversion: ConversionSpec | None = None,
+    al2o3_conversion: ConversionSpec | None = None,
+) -> SlagActivities:
+    """Build R.S. cation activities and documented conventional oxide activities.
+
+    Conventional conversions use J/mol of the conventional species. P2O5 and
+    Al2O3 are formula-unit conversions from two R.S. cations and therefore do
+    not define a conventional gamma on the cation-fraction basis.
+    """
+    rt = R * T
+    gamma_rs = {cation: math.exp(value / rt) for cation, value in rtln_gamma_rs.items()}
+    a_rs = {cation: gamma_rs[cation] * X[cation] for cation in rtln_gamma_rs}
+    gamma_conventional: dict[str, float] = {}
+    a_conventional: dict[str, float] = {}
+    delta_g: dict[str, float] = {}
+    standard_states: dict[str, str] = {}
+
+    if "P5+" in a_rs:
+        species = CATION_TO_OXIDE["P5+"]
+        A, B = CONVERSION_DEFAULTS[species]
+        dg = A + B * T
+        a_conventional[species] = a_rs["P5+"] ** 2 * math.exp(dg / rt)
+        delta_g[species] = dg
+        standard_states[species] = CONVERSION_STANDARD_STATES[species]
+
+    for cation, species in CATION_TO_OXIDE.items():
+        if cation not in a_rs or cation == "P5+":
+            continue
+
+        if cation == "Fe3+":
+            if fe2o3_conversion is None:
+                continue
+            A, B = fe2o3_conversion.A, fe2o3_conversion.B
+            standard_state = fe2o3_conversion.standard_state
+        elif cation == "Al3+":
+            if al2o3_conversion is None:
+                continue
+            dg = al2o3_conversion.A + al2o3_conversion.B * T
+            a_conventional[species] = a_rs[cation] ** 2 * math.exp(dg / rt)
+            delta_g[species] = dg
+            standard_states[species] = al2o3_conversion.standard_state
+            continue
+        elif species == "SiO2":
+            A, B = SIO2_CONVERSIONS[sio2_conversion]
+            standard_state = SIO2_CONVERSION_STANDARD_STATES[sio2_conversion]
+        else:
+            coefficients = CONVERSION_DEFAULTS.get(species)
+            standard_state = CONVERSION_STANDARD_STATES.get(species)
+            if coefficients is None or standard_state is None:
+                continue
+            A, B = coefficients
+
+        dg = A + B * T
+        factor = math.exp(dg / rt)
+        a_conventional[species] = a_rs[cation] * factor
+        gamma_conventional[species] = gamma_rs[cation] * factor
+        delta_g[species] = dg
+        standard_states[species] = standard_state
+
+    return SlagActivities(
+        gamma_rs_by_cation=gamma_rs,
+        a_rs_by_cation=a_rs,
+        gamma_conventional_by_species=gamma_conventional,
+        a_conventional_by_species=a_conventional,
+        delta_g_conversion_J_per_mol_species=delta_g,
+        standard_state_by_species=standard_states,
+    )
 
 
 def conversion_parameters(
