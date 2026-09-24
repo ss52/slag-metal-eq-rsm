@@ -54,9 +54,11 @@ checks:
 Primary sources:
 
 - [Ban-ya 1993](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_2/_article)
-- [Xiao and Holappa 1993](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_66/_article)
+- [Xiao and Holappa 1993](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_66/_article) — chromium conversion factors and interaction data.
+- [Xiao and Holappa 1995, p. 322, Eqs. 9–10](https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf) — oxide reaction coefficients.
+- [Xiao, Kou, and Fang 2018, p. 419, Table 1](https://jproeng.ipe.ac.cn/CN/abstract/abstract3039.shtml) — chromium dissolution coefficient.
 - [Xiao, Holappa, and Reuter 2002](https://doi.org/10.1007/s11663-002-0039-9)
-- [Sigworth and Elliott 1974](https://doi.org/10.1179/msc.1974.8.1.298)
+- [Sigworth and Elliott 1974](https://doi.org/10.1179/msc.1974.8.1.298) — Wagner first-order interaction parameters.
 
 ## Critical findings
 
@@ -77,7 +79,10 @@ with
 
 $$\Delta G^\circ=(25690-13.36T)\ \mathrm{cal\ mol^{-1}},$$
 
-and pure solid chromium as the metal standard state. At the audit baseline the
+and pure solid chromium as the metal standard state (Xiao and Holappa 1995,
+p. 322, Eqs. 9–10). The dissolution coefficient for $Cr(s)=[Cr]$ on the Henrian
+1 mass-% standard state comes from Xiao, Kou, and Fang 2018 (p. 419, Table 1).
+At the audit baseline the
 code made two independent changes without conversion: cal was interpreted as
 joules and $Cr(s)$ was replaced by dissolved chromium on the 1 mass-% standard
 state.

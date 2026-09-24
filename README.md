@@ -41,9 +41,10 @@ $$P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2$$
 
 4. **Chromium redox.** The Cr²⁺/Cr³⁺ ratio is pinned by the chromium activity
    in the steel via $2\,\underline{CrO_{1.5}} + [Cr]_{1\,wt\%} = 3\,\underline{CrO}$
-   (Xiao & Holappa) — oxygen cancels, so no $P_{O_2}$ is needed. The model
-   solves the **exact cubic** relation rather than the approximate square-root
-   fixed point found in spreadsheet implementations.
+   (oxide reaction from Xiao & Holappa 1995; dissolution coefficient from Xiao,
+   Kou & Fang 2018) — oxygen cancels, so no $P_{O_2}$ is needed. The model solves
+   the **exact cubic** relation rather than the approximate square-root fixed
+   point found in spreadsheet implementations.
 
 5. **Metal side (WIPF).** Solute activity coefficients come from **Wagner's
    first-order interaction-parameter formalism** (coefficients from
@@ -55,9 +56,11 @@ Because the oxygen potential is read off the slag and the balanced carbon is the
 
 ### Corrected equilibrium equations and numerical validity
 
-The chromium source reaction uses pure solid chromium and reports its free
-energy in cal/mol. The solver uses dissolved chromium on the Henrian 1 wt%
-standard state, so the reaction energy is converted as
+Xiao and Holappa (1995, p. 322, Eqs. 9–10) report the oxide reaction with pure
+solid chromium and its free energy in cal/mol. Xiao, Kou, and Fang (2018, p. 419,
+Table 1) give the dissolution coefficient for chromium on the Henrian 1 wt%
+standard state. The solver uses that dissolved-chromium standard state, so the
+reaction energy is converted as
 
 $$\Delta G^\circ_{1\,wt\%Cr}
 =4.184(25690-13.36T)-(19246-46.86T)\ \mathrm{J\ mol^{-1}},\qquad
@@ -355,16 +358,28 @@ These are **explicit** — the model does not invent values:
 3. **Y. Xiao, L. Holappa**, *Determination of Activities in Slags Containing
    Chromium Oxides*, ISIJ International **33** (1993), No. 1, 66–74.
    <https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_66/_article>
-   — the chromium redox equilibrium, the CrO / CrO₁.₅ conversion factors, and
-   the Cr-cation interaction parameters.
+   — the CrO / CrO₁.₅ conversion factors and the Cr-cation interaction
+   parameters.
 
-4. **Y. Xiao, L. Holappa, M.A. Reuter**, *Oxidation State and Activities of
+4. **Y. Xiao, L. Holappa**, *Thermodynamics of Slags Containing Chromium Oxides*,
+   INFACON 7, Trondheim (1995), 319–328.
+   <https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf>
+   — the oxide reaction coefficients in Eqs. 9–10 (p. 322).
+
+5. **S. Xiao, Q. Kou, X. Fang**, *Mutual Calculation between Standard Dissolved
+   Gibbs Free Energy and Differential Dissolution Enthalpy Based on a Model of
+   Dilute Solution*, Chinese Journal of Process Engineering **18** (2018), No. 2,
+   417–421, doi:10.12034/j.issn.1009-606X.217281.
+   <https://jproeng.ipe.ac.cn/CN/abstract/abstract3039.shtml>
+   — the chromium dissolution coefficient in Table 1 (p. 419).
+
+6. **Y. Xiao, L. Holappa, M.A. Reuter**, *Oxidation State and Activities of
    Chromium Oxides in CaO-SiO₂-CrOₓ Slag System*, Metallurgical and Materials
    Transactions B **33** (2002), 595–603.
    <https://link.springer.com/article/10.1007/s11663-002-0039-9>
    — experimental validation of the chromium oxidation state and activities.
 
-5. **G.K. Sigworth, J.F. Elliott**, *The Thermodynamics of Liquid Dilute Iron
+7. **G.K. Sigworth, J.F. Elliott**, *The Thermodynamics of Liquid Dilute Iron
    Alloys*, Metal Science **8** (1974), No. 1, 298–310.
    <https://doi.org/10.1179/msc.1974.8.1.298>
    — source of the first-order Wagner interaction parameters $e_i^j$ used for

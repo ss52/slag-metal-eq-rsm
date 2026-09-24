@@ -104,11 +104,32 @@ def test_fixed_po2_fe_redox_uses_two_rs_gammas():
     assert state.r_Fe == pytest.approx(expected, rel=1e-8)
 
 
+def test_chromium_thermodynamic_coefficients_have_separate_verified_sources():
+    sources = {source["id"]: source for source in CASES["sources"]}
+    assert {"xiao_holappa_1995", "xiao_kou_fang_2018"} <= sources.keys()
+
+    oxide_source = sources["xiao_holappa_1995"]
+    dissolution_source = sources["xiao_kou_fang_2018"]
+    sigworth_source = sources["sigworth_elliott_1974"]
+    assert "1995" in oxide_source["citation"]
+    assert "2018" in dissolution_source["citation"]
+    assert any("p. 322" in use and "Eqs. 9" in use for use in oxide_source["used_for"])
+    assert any("p. 419" in use and "Table 1" in use for use in dissolution_source["used_for"])
+    assert any("Wagner" in use for use in sigworth_source["used_for"])
+    assert not any("dissolv" in use.lower() for use in sigworth_source["used_for"])
+
+    oxide = CASES["xiao_holappa_1995"]["chromium_redox"]
+    dissolution = CASES["xiao_kou_fang_2018"]["chromium_dissolution_for_library_standard"]
+    assert oxide["delta_g_A_plus_B_T_cal_per_mol"] == [25690.0, -13.36]
+    assert dissolution["delta_g_A_plus_B_T_J_per_mol"] == [19246.0, -46.86]
+
+
 def test_xiao_chromium_equilibrium_is_on_library_metal_standard_state():
     temperature = 1823.15
-    source = CASES["xiao_holappa_1993"]
-    a_cal, b_cal = source["chromium_redox"]["delta_g_A_plus_B_T_cal_per_mol"]
-    a_dis, b_dis = source["chromium_dissolution_for_library_standard"][
+    oxide_source = CASES["xiao_holappa_1995"]
+    dissolution_source = CASES["xiao_kou_fang_2018"]
+    a_cal, b_cal = oxide_source["chromium_redox"]["delta_g_A_plus_B_T_cal_per_mol"]
+    a_dis, b_dis = dissolution_source["chromium_dissolution_for_library_standard"][
         "delta_g_A_plus_B_T_J_per_mol"
     ]
     delta_g_oxide_j = 4.184 * (a_cal + b_cal * temperature)

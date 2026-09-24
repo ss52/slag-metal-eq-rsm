@@ -14,13 +14,20 @@
       ]
     },
     {
-      "id": "xiao_holappa_1993",
-      "citation": "Y. Xiao and L. Holappa, ISIJ International 33 (1993) 66-74, doi:10.2355/isijinternational.33.66",
-      "url": "https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_66/_article",
+      "id": "xiao_holappa_1995",
+      "citation": "Y. Xiao and L. Holappa, Thermodynamics of Slags Containing Chromium Oxides, INFACON 7, Trondheim (1995), 319-328",
+      "url": "https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf",
       "used_for": [
-        "2 CrO1.5 + Cr(s) = 3 CrO",
-        "Delta G degree = 25690 - 13.36 T cal/mol",
+        "2 CrO1.5 + Cr(s) = 3 CrO; Delta G degree = 25690 - 13.36 T cal/mol; p. 322, Eqs. 9-10",
         "pure-solid chromium standard state"
+      ]
+    },
+    {
+      "id": "xiao_kou_fang_2018",
+      "citation": "S. Xiao, Q. Kou, and X. Fang, Mutual Calculation between Standard Dissolved Gibbs Free Energy and Differential Dissolution Enthalpy Based on a Model of Dilute Solution, Chinese Journal of Process Engineering 18(2) (2018) 417-421, doi:10.12034/j.issn.1009-606X.217281",
+      "url": "https://jproeng.ipe.ac.cn/CN/abstract/abstract3039.shtml",
+      "used_for": [
+        "Cr(s) = [Cr] on the Henrian 1 mass-percent standard state; Delta G degree = 19246 - 46.86 T J/mol; p. 419, Table 1"
       ]
     },
     {
@@ -38,8 +45,7 @@
       "citation": "G.K. Sigworth and J.F. Elliott, Metal Science 8 (1974) 298-310, doi:10.1179/msc.1974.8.1.298",
       "url": "https://doi.org/10.1179/msc.1974.8.1.298",
       "used_for": [
-        "Wagner first-order interaction parameters",
-        "Cr(s) to dissolved Cr on the 1 mass-percent standard state"
+        "Wagner first-order interaction parameters"
       ]
     }
   ],
@@ -63,12 +69,14 @@
       "activity_relation": "ln(a_P2O5) = 2 ln(a_PO2.5_RS) + DeltaG_conversion/(R*T)"
     }
   },
-  "xiao_holappa_1993": {
+  "xiao_holappa_1995": {
     "chromium_redox": {
       "reaction": "2 CrO1.5 + Cr(s) = 3 CrO",
       "delta_g_A_plus_B_T_cal_per_mol": [25690.0, -13.36],
       "metal_standard_state": "pure_solid_chromium"
-    },
+    }
+  },
+  "xiao_kou_fang_2018": {
     "chromium_dissolution_for_library_standard": {
       "reaction": "Cr(s) = [Cr](1 mass-percent standard state in liquid iron)",
       "delta_g_A_plus_B_T_J_per_mol": [19246.0, -46.86]
