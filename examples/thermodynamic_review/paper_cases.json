@@ -14,6 +14,14 @@
       ]
     },
     {
+      "id": "banya_1985",
+      "citation": "S. Ban-ya, F. Ishii, Y. Iguchi, and T. Nagasaka, Tetsu-to-Hagané 71 (1985), No. 7, 853-860, doi:10.2355/tetsutohagane1955.71.7_853",
+      "url": "https://www.jstage.jst.go.jp/article/tetsutohagane1955/71/7/71_7_853/_article",
+      "used_for": [
+        "Table 1, p. 854: four reported oxide mass fractions, Fe3+/Fe2+, and measured a_Fe_tO at 1450 C with solid iron"
+      ]
+    },
+    {
       "id": "xiao_holappa_1995",
       "citation": "Y. Xiao and L. Holappa, Thermodynamics of Slags Containing Chromium Oxides, INFACON 7, Trondheim (1995), 319-328",
       "url": "https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf",
@@ -68,6 +76,54 @@
       "reaction": "P2O5(l) = 2 PO2.5(RS)",
       "activity_relation": "ln(a_P2O5) = 2 ln(a_PO2.5_RS) + DeltaG_conversion/(R*T)"
     }
+  },
+  "banya_1985": {
+    "temperature_K": 1723.15,
+    "activity_standard_state": "Fe_tO(l) equilibrated with Fe(s or l), Ban-ya (1993) Table 3; the 1985 Table I measurements used solid Fe",
+    "oxide_basis": "Normalize only the four reported oxides; do not assign the unreported mass balance",
+    "case_selection": "First Table I row in each nominal a_Fe_tO band 0.1, 0.3, 0.5, and 0.7, plus the first row in band 0.9 as an out-of-range diagnostic",
+    "experimental_cases_1723_15_K": [
+      {
+        "id": "101",
+        "reported_wt_percent": {"FeO": 5.46, "Fe2O3": 0.46, "SiO2": 29.14, "MnO": 63.64},
+        "reported_Fe3_to_Fe2": 0.076,
+        "measured_activity_Fe_tO": 0.100,
+        "nominal_activity_band": 0.1,
+        "validation_role": "project_screen"
+      },
+      {
+        "id": "301",
+        "reported_wt_percent": {"FeO": 18.82, "Fe2O3": 0.52, "SiO2": 26.06, "MnO": 54.29},
+        "reported_Fe3_to_Fe2": 0.025,
+        "measured_activity_Fe_tO": 0.299,
+        "nominal_activity_band": 0.3,
+        "validation_role": "project_screen"
+      },
+      {
+        "id": "501",
+        "reported_wt_percent": {"FeO": 35.31, "Fe2O3": 2.13, "SiO2": 25.76, "MnO": 36.42},
+        "reported_Fe3_to_Fe2": 0.054,
+        "measured_activity_Fe_tO": 0.499,
+        "nominal_activity_band": 0.5,
+        "validation_role": "project_screen"
+      },
+      {
+        "id": "701",
+        "reported_wt_percent": {"FeO": 54.44, "Fe2O3": 4.54, "SiO2": 20.52, "MnO": 20.50},
+        "reported_Fe3_to_Fe2": 0.075,
+        "measured_activity_Fe_tO": 0.702,
+        "nominal_activity_band": 0.7,
+        "validation_role": "project_screen"
+      },
+      {
+        "id": "901",
+        "reported_wt_percent": {"FeO": 77.65, "Fe2O3": 8.03, "SiO2": 10.37, "MnO": 3.44},
+        "reported_Fe3_to_Fe2": 0.093,
+        "measured_activity_Fe_tO": 0.899,
+        "nominal_activity_band": 0.9,
+        "validation_role": "stress_diagnostic"
+      }
+    ]
   },
   "xiao_holappa_1995": {
     "chromium_redox": {
@@ -147,9 +203,51 @@
       }
     ]
   },
+  "model_diagnostic_snapshots": {
+    "banya_1985_1723_15_K": {
+      "description": "Calculated isolated slag Fe_tO activities from the current model; model outputs, not paper measurements.",
+      "activity_Fe_tO": {"101": 0.104851, "301": 0.318198, "501": 0.477476, "701": 0.650590, "901": 0.918068}
+    },
+    "xiao_2002_1873_K": {
+      "description": "Calculated isolated slag CrO and CrO1.5 activities from the current model; model outputs, not paper measurements.",
+      "activities": {
+        "CSC1": {"CrO": 0.194370, "CrO1.5": 0.359843},
+        "CSC2": {"CrO": 0.354057, "CrO1.5": 0.655808},
+        "CSC3": {"CrO": 0.422094, "CrO1.5": 1.058774},
+        "CSC4": {"CrO": 0.504565, "CrO1.5": 1.208080},
+        "CSC7": {"CrO": 0.109084, "CrO1.5": 0.054508},
+        "CSC10": {"CrO": 0.279832, "CrO1.5": 0.171988},
+        "CSC11": {"CrO": 0.368475, "CrO1.5": 0.497033},
+        "CSC12": {"CrO": 0.414866, "CrO1.5": 0.691888}
+      },
+      "q_over_k_pure_solid_cr": {
+        "CSC1": 0.068,
+        "CSC2": 0.123,
+        "CSC3": 0.080,
+        "CSC4": 0.105,
+        "CSC7": 0.523,
+        "CSC10": 0.886,
+        "CSC11": 0.242,
+        "CSC12": 0.178
+      }
+    }
+  },
+  "xiao_2002_measured_activity_q_over_k_snapshot": {
+    "CSC1": 0.973,
+    "CSC2": 1.001,
+    "CSC3": 0.989,
+    "CSC4": 1.026,
+    "CSC7": 1.769,
+    "CSC10": 0.997,
+    "CSC11": 1.010,
+    "CSC12": 1.003
+  },
   "validation_policy": {
     "transcribed_constants": "exact apart from floating-point representation",
     "equation_identities": "relative tolerance 1e-12",
-    "experimental_activity_envelope": "calculated/measured must be between 1/2.1 and 2.1; this is deliberately broad because the paper reports experimental scatter and only approximate agreement"
+    "banya_activity_relative_error_screen": 0.1,
+    "banya_screen_interpretation": "10% project screening threshold for preselected rows 101, 301, 501, and 701; not a statement of source measurement uncertainty",
+    "xiao_source_activity_identity_abs_tolerance": 0.006,
+    "xiao_q_over_k_interpretation": "Calculated from the paper's rounded measured activities and pure-solid chromium equilibrium; seven rows are near unity, while CSC7 is a printed-row anomaly. The paper specifies no quantitative activity-error acceptance bound."
   }
 }

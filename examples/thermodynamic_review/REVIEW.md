@@ -46,13 +46,22 @@ checks:
   data table.
 - Xiao, Holappa, and Reuter Table IV coefficients for CrO, CrO1.5, and SiO2.
 - Five chromium-related Table III interaction energies used by the Python matrix.
-- The eight selected Xiao 2002 experimental compositions remain within a factor
-  2.1 of the reported CrO and CrO1.5 activities. This deliberately broad envelope
-  reflects the paper's stated scatter and approximate model agreement; it is not
-  a high-precision acceptance criterion.
+- Four preselected Ban-ya 1985 Table 1 rows (101, 301, 501, and 701) are within
+  the declared 10% project activity screen. This threshold is not source
+  measurement uncertainty. Row 901 is reported only as a stress diagnostic
+  because its total iron cation fraction, 0.84236, is outside the stated range.
+- Xiao 2002 Table I measured activities reconstruct from the printed activity
+  coefficients and compositions within 0.006 absolute. Seven printed rows give
+  pure-solid-Cr $Q/K=0.973$–$1.026$; CSC7 gives 1.769 and remains flagged as a
+  source-row anomaly. The current model's mean absolute relative differences are
+  29.6% for CrO and 39.6% for CrO1.5. The paper gives no quantitative
+  activity-error acceptance bound; Fig. 11 shows substantial model-to-measurement
+  scatter, so these values are contextual comparisons, not proof of a code defect
+  or an acceptance test.
 
 Primary sources:
 
+- [Ban-ya et al. 1985, Table 1, p. 854](https://www.jstage.jst.go.jp/article/tetsutohagane1955/71/7/71_7_853/_pdf)
 - [Ban-ya 1993](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_2/_article)
 - [Xiao and Holappa 1993](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_66/_article) — chromium conversion factors and interaction data.
 - [Xiao and Holappa 1995, p. 322, Eqs. 9–10](https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf) — oxide reaction coefficients.
@@ -318,10 +327,11 @@ Per the requested scope, these were recorded but not investigated further:
 
 Files:
 
-- `paper_cases.json`: source citations, exact constants, equations, and eight
-  experimental cases from Xiao 2002 Table I.
-- `test_paper_validation.py`: exact transcription/equation tests plus the declared
-  experimental activity envelope.
+- `paper_cases.json`: source citations, exact constants and equations, five
+  selected Ban-ya 1985 rows, eight Xiao 2002 rows, and model-output snapshots
+  explicitly separated from source measurements.
+- `test_paper_validation.py`: source-data identity checks, isolated activity
+  comparisons, redox diagnostics, and snapshots of current calculated values.
 - `test_defect_regressions.py`: executable reproductions for non-paper numerical
   and input/output defects.
 
@@ -331,18 +341,21 @@ Run from the repository root:
 uv run pytest examples\thermodynamic_review -p no:cacheprovider -v
 ```
 
-Current result:
+Paper-review pack result (2026-09-24):
 
 ```text
-29 passed, 7 xfailed
+70 passed, 7 xfailed
 ```
 
-The seven remaining strict `xfail` markers correspond to documented
-normal-priority findings: chromium root bracketing, fixed-pressure diagnostic
-pressure, elemental-total warning, trace-species cancellation, the Fe3+-Ca2+
-coefficient, selectable Xiao-2002 parameter sets, and the Mn-C interaction
-coefficient. The four P0 critical regressions now pass. The experimental
-factor-of-2.1 envelope is not a substitute for the strict equation and data tests.
+The seven strict `xfail` markers correspond to documented normal-priority findings: chromium root bracketing,
+fixed-pressure diagnostic pressure, elemental-total warning, trace-species
+cancellation, the Fe3+-Ca2+ coefficient, selectable Xiao-2002 parameter sets,
+and the Mn-C interaction coefficient. The four P0 critical regressions pass.
+The former factor-of-2.1 experimental envelope has been removed because the
+paper does not prescribe a quantitative activity-error bound. The recorded
+model-to-measurement differences remain contextualized against Fig. 11; they are
+not on their own evidence of a code defect or of a model outside the paper's
+reported accuracy.
 
 ## Recommended repair order
 

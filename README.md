@@ -24,7 +24,7 @@ The model closes the slag–metal system with **one** oxygen potential $P_{O_2}$
    (Ban-ya 1993). Oxide-component activity coefficients follow from cation
    fractions $X_i$ and pair interaction energies $\alpha_{ij}$:
 
-$$RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{j} \sum_{k} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k$$
+$$RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{\substack{j<k \\ j,k\ne i}} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k$$
 
    The model reports both regular-solution cation activities and conventional
    oxide activities when a documented conversion is available. Ban-ya Eq. 24
@@ -78,6 +78,71 @@ $a_{P_2O_5}= (a_{PO_{2.5}}^{RS})^2\exp[(52720-230.706T)/(RT)]$;
 conventional $a_{Al_2O_3}$ is unavailable unless a labeled custom conversion is
 provided. The corresponding regular-solution cation activities remain
 available.
+
+## Comparisons with published slag activities
+
+These comparisons exercise the isolated slag-activity calculation. They do not
+test the complete coupled EAF slag–metal solve. Relative differences are
+calculated as `calculated / measured - 1`.
+
+### Ban-ya 1985, Table 1
+
+The reported oxide mass fractions, Fe³⁺/Fe²⁺ ratios, and $a_{Fe_tO}$ values are
+from Table 1, p. 854 of [Ban-ya et al. (1985)](https://www.jstage.jst.go.jp/article/tetsutohagane1955/71/7/71_7_853/_pdf),
+measured at 1450 °C with solid iron. Activities use the $Fe_tO(l)$ standard state
+equilibrated with $Fe(s\text{ or }l)$ defined by [Ban-ya (1993), Table 3](https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_2/_article). Cation
+fractions are calculated from only the four oxides reported in the table; the
+unreported mass balance is not assigned to another species.
+
+| Run | Measured $a_{Fe_tO}$ | Calculated $a_{Fe_tO}$ | Relative difference | Use |
+|---:|---:|---:|---:|---|
+| 101 | 0.100 | 0.104851 | +4.85% | 10% project screen |
+| 301 | 0.299 | 0.318198 | +6.42% | 10% project screen |
+| 501 | 0.499 | 0.477476 | −4.31% | 10% project screen |
+| 701 | 0.702 | 0.650590 | −7.32% | 10% project screen |
+| 901 | 0.899 | 0.918068 | +2.12% | Stress diagnostic only |
+
+Runs 101–701 are the first rows selected from the nominal activity bands 0.1,
+0.3, 0.5, and 0.7. All four fall within a 10% project screening threshold;
+that threshold is not a measurement-uncertainty estimate. Run 901 is shown but
+excluded from that screen because its total iron cation fraction is about 0.842,
+beyond the paper's stated 0.7 composition boundary.
+
+### Xiao, Holappa, and Reuter 2002, Table I
+
+The eight CaO–SiO₂–CrO–CrO₁.₅ compositions and reported activities are from
+[Table I](https://link.springer.com/article/10.1007/s11663-002-0039-9), at
+1873 K with a chromium crucible. The conventional standards are liquid CrO and
+solid CrO₁.₅; the redox diagnostic uses pure solid Cr. The model activities
+below are calculated with the currently selected hybrid interaction matrix and
+the Xiao 2002 SiO₂ conversion. For $Q/K$, $Q=a_{CrO}^3/a_{CrO_{1.5}}^2$ and
+$K$ is calculated from the pure-solid-Cr reaction in [Xiao and Holappa (1995),
+Eqs. 9–10](https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf), not the
+library's dissolved-chromium standard state.
+
+| Case | Measured $a_{CrO}/a_{CrO_{1.5}}$ | Calculated $a_{CrO}/a_{CrO_{1.5}}$ | Relative differences | Measured $Q/K$ | Model $Q/K$ |
+|---|---:|---:|---:|---:|---:|
+| CSC1 | 0.39 / 0.27 | 0.194370 / 0.359843 | −50.16% / +33.28% | 0.973 | 0.068 |
+| CSC2 | 0.52 / 0.41 | 0.354057 / 0.655808 | −31.91% / +59.95% | 1.001 | 0.123 |
+| CSC3 | 0.74 / 0.70 | 0.422094 / 1.058774 | −42.96% / +51.25% | 0.989 | 0.080 |
+| CSC4 | 0.95 / 1.00 | 0.504565 / 1.208080 | −46.89% / +20.81% | 1.026 | 0.105 |
+| CSC7 | 0.11 / 0.03 | 0.109084 / 0.054508 | −0.83% / +81.69% | 1.769 | 0.523 |
+| CSC10 | 0.30 / 0.18 | 0.279832 / 0.171988 | −6.72% / −4.45% | 0.997 | 0.886 |
+| CSC11 | 0.53 / 0.42 | 0.368475 / 0.497033 | −30.48% / +18.34% | 1.010 | 0.242 |
+| CSC12 | 0.57 / 0.47 | 0.414866 / 0.691888 | −27.22% / +47.21% | 1.003 | 0.178 |
+
+The printed measured activities reconstruct from the paper's rounded activity
+coefficients and compositions within 0.006 absolute. Seven measured rows give
+$Q/K=0.973$–$1.026$; the printed CSC7 values give 1.769 and are retained as a
+source-row anomaly. The current model's predicted activities have mean absolute
+relative differences of 29.6% for CrO and 39.6% for CrO₁.₅.
+The 10% project screen used for Ban-ya is not applied to these Xiao rows: the
+paper gives no quantitative activity-error acceptance bound. Its Fig. 11 shows
+substantial model-to-measurement scatter, including deviations similar to those
+in this table. That plot has no case identifiers and its calculated-activity
+axis ends at 1.0, so it provides qualitative context rather than a row-by-row
+check. The differences are reported for comparison and do not by themselves
+establish a code defect or empirical validation of the full coupled solver.
 
 Numeric inputs and solver states must be finite. Non-finite or undefined
 iteration values raise an error, and JSON reports are serialized with strict
@@ -313,8 +378,21 @@ uv run pytest -v
 The suite covers source-equation checks for Cr equilibrium and Fe redox,
 formula-unit activity conversions, numeric input/output safety, legacy workbook
 regressions of the interaction matrix, and the reference coupled solve. The
-paper-derived cases are an independent experimental envelope, not an oracle for
-the parameter matrix.
+separate paper-review pack documents source-row activity comparisons, the
+observed Xiao model-to-measurement differences, and redox diagnostics; it does
+not certify the parameter matrix as empirically validated.
+
+The separate paper-review pack can be run with:
+
+```bash
+uv run pytest examples/thermodynamic_review -p no:cacheprovider -ra
+```
+
+The Ban-ya activity screen covers only runs 101–701; run 901 is diagnostic only.
+The Xiao comparison reports calculated and measured activities, source-row
+redox diagnostics, and model-output snapshots. The paper's Fig. 11 provides
+qualitative context, but no quantitative activity-error threshold is imposed.
+Neither paper pack result is presented as full-solver validation.
 
 ## Code quality
 
@@ -377,7 +455,7 @@ These are **explicit** — the model does not invent values:
    Chromium Oxides in CaO-SiO₂-CrOₓ Slag System*, Metallurgical and Materials
    Transactions B **33** (2002), 595–603.
    <https://link.springer.com/article/10.1007/s11663-002-0039-9>
-   — experimental validation of the chromium oxidation state and activities.
+   — Table I data used for the model comparison above.
 
 7. **G.K. Sigworth, J.F. Elliott**, *The Thermodynamics of Liquid Dilute Iron
    Alloys*, Metal Science **8** (1974), No. 1, 298–310.

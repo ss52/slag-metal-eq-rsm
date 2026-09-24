@@ -1,4 +1,4 @@
-"""Paper-derived validation tests for the thermodynamic model.
+"""Paper-derived source checks and isolated activity comparisons.
 
 Known defects are strict xfails: they document the required scientific behavior
 without making the repository's ordinary test run red before the fixes land.
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from slag_model.constants import R
+from slag_model.constants import MOLAR_MASS_OXIDE, R
 from slag_model.data import ALPHA, CATION_ORDER, CONVERSION_DEFAULTS, EIJ, SIO2_CONVERSIONS
 from slag_model.equilibrium import k_Cr
 from slag_model.io import load_input
@@ -169,17 +169,23 @@ def IDX_METAL(species: str) -> int:
     return METAL_SPECIES.index(species)
 
 
-@pytest.mark.parametrize(
-    "case",
-    CASES["xiao_holappa_reuter_2002"]["experimental_cases_1873_K"],
-    ids=lambda case: case["id"],
-)
-def test_xiao_2002_table_i_experimental_activity_envelope(case):
-    """Check the paper's stated approximate agreement, not exact curve-fitting.
+def _banya_1985_prediction(case):
+    wt = case["reported_wt_percent"]
+    n = {
+        "Fe2+": wt["FeO"] / MOLAR_MASS_OXIDE["FeO"],
+        "Fe3+": 2.0 * wt["Fe2O3"] / MOLAR_MASS_OXIDE["Fe2O3"],
+        "Si4+": wt["SiO2"] / MOLAR_MASS_OXIDE["SiO2"],
+        "Mn2+": wt["MnO"] / MOLAR_MASS_OXIDE["MnO"],
+    }
+    total = sum(n.values())
+    x = {cation: amount / total for cation, amount in n.items()}
+    full_x = {cation: x.get(cation, 0.0) for cation in CATION_ORDER}
+    rtln = rsm_gamma_rtln(x, "full")
+    activities = build_slag_activities(rtln, full_x, 1723.15, sio2_conversion="banya")
+    return activities.a_conventional_by_species["FeO"], x["Fe2+"] + x["Fe3+"], n["Fe3+"] / n["Fe2+"]
 
-    The factor-of-2.1 envelope is intentionally broad and is declared in the
-    fixture. Exact tests above protect transcription and equation identities.
-    """
+
+def _xiao_2002_prediction(case):
     mol_percent = case["mol_percent"]
     total = sum(mol_percent.values())
     x = {
@@ -191,13 +197,133 @@ def test_xiao_2002_table_i_experimental_activity_envelope(case):
     rtln = rsm_gamma_rtln(x, "full")
     full_x = {cation: x.get(cation, 0.0) for cation in CATION_ORDER}
     activities = build_slag_activities(rtln, full_x, 1873.0, sio2_conversion="workbook")
-    calculated = {
-        species: activities.a_conventional_by_species[species] for species in ("CrO", "CrO1.5")
-    }
-    factor = 2.1
-    for oxide, measured in case["measured_activity"].items():
-        ratio = calculated[oxide] / measured
-        assert 1.0 / factor <= ratio <= factor, (
-            f"{case['id']} {oxide}: calculated={calculated[oxide]:.6g}, "
-            f"measured={measured:.6g}, ratio={ratio:.3f}"
+    return {oxide: activities.a_conventional_by_species[oxide] for oxide in ("CrO", "CrO1.5")}, x
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["banya_1985"]["experimental_cases_1723_15_K"],
+    ids=lambda case: case["id"],
+)
+def test_banya_1985_table_i_oxide_split_matches_printed_fe_ratio(case):
+    _, _, calculated_ratio = _banya_1985_prediction(case)
+    assert calculated_ratio == pytest.approx(case["reported_Fe3_to_Fe2"], abs=0.001)
+
+
+def test_banya_1985_table_i_cases_are_available():
+    """Keep a fixed source-based Ban-ya 1985 sample for activity comparison."""
+    cases = CASES["banya_1985"]["experimental_cases_1723_15_K"]
+    assert [case["id"] for case in cases] == ["101", "301", "501", "701", "901"]
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        case
+        for case in CASES["banya_1985"]["experimental_cases_1723_15_K"]
+        if case["validation_role"] == "project_screen"
+    ],
+    ids=lambda case: case["id"],
+)
+def test_banya_1985_screened_rows_match_reported_fe_to_activity(case):
+    calculated, _, _ = _banya_1985_prediction(case)
+    measured = case["measured_activity_Fe_tO"]
+    tolerance = CASES["validation_policy"]["banya_activity_relative_error_screen"]
+    relative_error = calculated / measured - 1.0
+    assert abs(relative_error) <= tolerance, (
+        f"{case['id']}: calculated={calculated:.6f}, measured={measured:.3f}, "
+        f"relative error={relative_error:+.2%}"
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["banya_1985"]["experimental_cases_1723_15_K"],
+    ids=lambda case: case["id"],
+)
+def test_banya_1985_calculated_activity_matches_diagnostic_snapshot(case):
+    calculated, _, _ = _banya_1985_prediction(case)
+    expected = CASES["model_diagnostic_snapshots"]["banya_1985_1723_15_K"]["activity_Fe_tO"][
+        case["id"]
+    ]
+    assert calculated == pytest.approx(expected, abs=5e-7)
+
+
+def test_banya_1985_high_iron_row_is_stress_diagnostic_only():
+    case = CASES["banya_1985"]["experimental_cases_1723_15_K"][-1]
+    _, x_fe_total, _ = _banya_1985_prediction(case)
+    assert case["id"] == "901"
+    assert case["validation_role"] == "stress_diagnostic"
+    assert x_fe_total == pytest.approx(0.84236, abs=5e-6)
+    assert x_fe_total > 0.7
+
+
+def _xiao_2002_pure_solid_cr_k():
+    temperature = 1873.0
+    a_cal, b_cal = CASES["xiao_holappa_1995"]["chromium_redox"]["delta_g_A_plus_B_T_cal_per_mol"]
+    delta_g_j_per_mol = 4.184 * (a_cal + b_cal * temperature)
+    return math.exp(-delta_g_j_per_mol / (R * temperature))
+
+
+def _xiao_2002_measured_redox_q_over_k(case):
+    activity = case["measured_activity"]
+    q = activity["CrO"] ** 3 / activity["CrO1.5"] ** 2
+    return q / _xiao_2002_pure_solid_cr_k()
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["xiao_holappa_reuter_2002"]["experimental_cases_1873_K"],
+    ids=lambda case: case["id"],
+)
+def test_xiao_2002_measured_activity_identity_matches_reported_gamma(case):
+    _, x = _xiao_2002_prediction(case)
+    for oxide, cation in (("CrO", "Cr2+"), ("CrO1.5", "Cr3+")):
+        reconstructed = case["measured_gamma"][oxide] * x[cation]
+        measured = case["measured_activity"][oxide]
+        assert reconstructed == pytest.approx(
+            measured,
+            abs=CASES["validation_policy"]["xiao_source_activity_identity_abs_tolerance"],
         )
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["xiao_holappa_reuter_2002"]["experimental_cases_1873_K"],
+    ids=lambda case: case["id"],
+)
+def test_xiao_2002_calculated_activities_match_diagnostic_snapshot(case):
+    calculated, _ = _xiao_2002_prediction(case)
+    expected = CASES["model_diagnostic_snapshots"]["xiao_2002_1873_K"]["activities"][case["id"]]
+    for oxide in ("CrO", "CrO1.5"):
+        assert calculated[oxide] == pytest.approx(expected[oxide], abs=5e-7)
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["xiao_holappa_reuter_2002"]["experimental_cases_1873_K"],
+    ids=lambda case: case["id"],
+)
+def test_xiao_2002_calculated_redox_q_over_k_matches_snapshot(case):
+    calculated, _ = _xiao_2002_prediction(case)
+    q = calculated["CrO"] ** 3 / calculated["CrO1.5"] ** 2
+    q_over_k = q / _xiao_2002_pure_solid_cr_k()
+    expected = CASES["model_diagnostic_snapshots"]["xiao_2002_1873_K"]["q_over_k_pure_solid_cr"][
+        case["id"]
+    ]
+    assert q_over_k == pytest.approx(expected, abs=0.001)
+
+
+@pytest.mark.parametrize(
+    "case",
+    CASES["xiao_holappa_reuter_2002"]["experimental_cases_1873_K"],
+    ids=lambda case: case["id"],
+)
+def test_xiao_2002_published_activity_redox_diagnostic(case):
+    q_over_k = _xiao_2002_measured_redox_q_over_k(case)
+    expected = CASES["xiao_2002_measured_activity_q_over_k_snapshot"][case["id"]]
+    assert q_over_k == pytest.approx(expected, abs=0.001)
+    if case["id"] == "CSC7":
+        assert q_over_k > 1.7
+    else:
+        assert 0.97 <= q_over_k <= 1.03
