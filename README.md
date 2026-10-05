@@ -20,45 +20,49 @@ selected relations.
 ## Physical basis
 
 In coupled mode, the model links Fe–O, Fe redox and carbon through the Fe-buffer
-oxygen potential $P_{O_2}$, and separately solves chromium comproportionation
+oxygen potential $`P_{O_2}`$, and separately solves chromium comproportionation
 while retaining the prescribed compositions:
 
 1. **Slag side (RSM).** The slag is treated as a regular solution of cations
    (Ban-ya 1993). Oxide-component activity coefficients follow from cation
-   fractions $X_i$ and pair interaction energies $\alpha_{ij}$:
+   fractions $`X_i`$ and pair interaction energies $`\alpha_{ij}`$:
 
-$$RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{\substack{j<k \\ j,k\ne i}} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k$$
+```math
+RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{\substack{j<k \\ j,k\ne i}} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k
+```
 
    The model reports both regular-solution cation activities and conventional
    oxide activities when a documented conversion is available. Ban-ya Eq. 24
    uses the two Fe regular-solution coefficients; the Fe–O oxygen-potential
-   closure uses conventional $a_{FeO}$.
+   closure uses conventional $`a_{FeO}`$.
 
-2. **Oxygen potential.** In coupled mode, $P_{O_2}$ is calculated from the
+2. **Oxygen potential.** In coupled mode, $`P_{O_2}`$ is calculated from the
    slag's FeO activity through the Fe–O equilibrium:
 
-$$P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2$$
+```math
+P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2
+```
 
-3. **Iron redox.** The Fe³⁺/Fe²⁺ ratio is slaved to $P_{O_2}$
+3. **Iron redox.** The Fe³⁺/Fe²⁺ ratio is slaved to $`P_{O_2}`$
    (Ban-ya Eq. 24).
 
 4. **Chromium comproportionation.** The Cr²⁺/Cr³⁺ ratio is pinned by the
-   chromium activity in the steel via $2\,\underline{CrO_{1.5}} + [Cr]_{1\,wt\%} = 3\,\underline{CrO}$
+   chromium activity in the steel via $`2\,\underline{CrO_{1.5}} + [Cr]_{1\,wt\%} = 3\,\underline{CrO}`$
    (oxide reaction from Xiao & Holappa 1995; dissolution coefficient from Xiao,
-   Kou & Fang 2018) — oxygen cancels, so no $P_{O_2}$ is needed. The model solves
+   Kou & Fang 2018) — oxygen cancels, so no $`P_{O_2}`$ is needed. The model solves
    the **exact cubic** relation rather than the approximate square-root fixed
    point found in spreadsheet implementations.
 
-   The independent equilibrium $CrO_{1.5}(s)=CrO(l)+\tfrac14 O_2(g)$
+   The independent equilibrium $`CrO_{1.5}(s)=CrO(l)+\tfrac14 O_2(g)`$
    ([Xiao and Holappa 1995, p. 324, Eqs. 14–15](https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf))
    is not enforced. The chromium valence constraint therefore need not be
    consistent with the Fe-buffer oxygen potential; the calculation is not a
    complete slag–metal redox equilibrium.
 
-   For the default reference EAF case, the Fe-buffer $P_{O_2}$ is about
-   $3.72\times10^{-10}$ atm, whereas Eq. 15 with the same oxide reference
-   states and calculated activities implies $9.06\times10^{-10}$ atm, about
-   2.44 times higher. The Cr–O $Q/K$ at the reported pressure is about 0.80.
+   For the default reference EAF case, the Fe-buffer $`P_{O_2}`$ is about
+   $`3.72\times10^{-10}`$ atm, whereas Eq. 15 with the same oxide reference
+   states and calculated activities implies $`9.06\times10^{-10}`$ atm, about
+   2.44 times higher. The Cr–O $`Q/K`$ at the reported pressure is about 0.80.
    This illustrates an unenforced source-equation discrepancy, not solver
    roundoff or measured-activity fit scatter; these values are neither an
    empirical measurement nor an accuracy tolerance.
@@ -66,20 +70,20 @@ $$P_{O_2} = \left( \frac{a_{FeO}}{K_{FeO}\, a_{Fe}} \right)^2$$
 5. **Metal side (WIPF).** Solute activity coefficients come from **Wagner's
    first-order interaction-parameter formalism**, using auxiliary metal-side
    data discussed below. Carbon is calculated from the C–O reaction at the same
-   $P_{O_2}$. The selected FeO, CO, chromium comproportionation and Fe-redox
+   $`P_{O_2}`$. The selected FeO, CO, chromium comproportionation and Fe-redox
    relations are therefore satisfied at the prescribed compositions, within
    solver tolerance.
 
-Slag elemental Fe/Cr totals, metal Cr/Mn/P contents, temperature and $P_{CO}$
+Slag elemental Fe/Cr totals, metal Cr/Mn/P contents, temperature and $`P_{CO}`$
 remain prescribed. The model updates Fe/Cr valence ratios and carbon; it has
 no phase masses, slag/metal mass ratio, gas inventory or coupled element
 transfer. It does not predict closed-system equilibration or Mn/P partition
 coefficients. The coupled calculation uses damped fixed-point iteration.
 
-The separate `solve_redox_fixed_po2` Python function imposes $P_{O_2}$ and carbon.
+The separate `solve_redox_fixed_po2` Python function imposes $`P_{O_2}`$ and carbon.
 It enforces Fe redox and chromium comproportionation; FeO and CO equilibrium
 are not enforced. The output identifies this mode and evaluates every reported
-$Q/K$ at the imposed pressure.
+$`Q/K`$ at the imposed pressure.
 
 ### Corrected equilibrium equations and numerical validity
 
@@ -89,20 +93,24 @@ Table 1) give the dissolution coefficient for chromium on the Henrian 1 wt%
 standard state. The solver uses that dissolved-chromium standard state, so the
 reaction energy is converted as
 
-$$\Delta G^\circ_{1\,wt\%Cr}
+```math
+\Delta G^\circ_{1\,wt\%Cr}
 =4.184(25690-13.36T)-(19246-46.86T)\ \mathrm{J\ mol^{-1}},\qquad
-K_{Cr}=\exp\!\left(-\frac{\Delta G^\circ_{1\,wt\%Cr}}{RT}\right).$$
+K_{Cr}=\exp\!\left(-\frac{\Delta G^\circ_{1\,wt\%Cr}}{RT}\right).
+```
 
 Ban-ya Eq. 24 uses both Fe coefficients on the regular-solution basis:
 
-$$\log_{10}\!\left(\frac{n_{Fe^{3+}}}{n_{Fe^{2+}}}\right)
+```math
+\log_{10}\!\left(\frac{n_{Fe^{3+}}}{n_{Fe^{2+}}}\right)
 =\frac{6625}{T}-2.77+0.25\log_{10}P_{O_2}
-+\log_{10}\gamma_{FeO}^{RS}-\log_{10}\gamma_{FeO_{1.5}}^{RS}.$$
++\log_{10}\gamma_{FeO}^{RS}-\log_{10}\gamma_{FeO_{1.5}}^{RS}.
+```
 
-The oxygen-potential closure still uses conventional $a_{FeO}$. For the
-formula-unit conversion $P_2O_5(l)=2PO_{2.5}(RS)$, the reported activity is
-$a_{P_2O_5}= (a_{PO_{2.5}}^{RS})^2\exp[(52720-230.706T)/(RT)]$;
-conventional $a_{Al_2O_3}$ is unavailable unless a labeled custom conversion is
+The oxygen-potential closure still uses conventional $`a_{FeO}`$. For the
+formula-unit conversion $`P_2O_5(l)=2PO_{2.5}(RS)`$, the reported activity is
+$`a_{P_2O_5}= (a_{PO_{2.5}}^{RS})^2\exp[(52720-230.706T)/(RT)]`$;
+conventional $`a_{Al_2O_3}`$ is unavailable unless a labeled custom conversion is
 provided. The corresponding regular-solution cation activities remain
 available.
 
@@ -114,8 +122,8 @@ validation of the complete coupled calculation.
 
 | Tested calculation | Temperature and composition | What the evidence establishes |
 |---|---|---|
-| Reference EAF solve, [`eaf_slag_01.json`](examples/eaf_slag_01.json), default `banya93_xiao95_v1` profile | 1823.15 K, $P_{CO}=1$ atm; prescribed metal Cr 0.038, Mn 0.007, P 0.069 wt%; solved C about 0.0308 wt% | Computational regression and selected equilibrium identities at this input; no experimental full-solver validation. |
-| Chromium-free equimolar CaO–SiO₂ illustration, `banya93_casi_xiao95cr_hybrid_v1` with Ban-ya silica conversion | 1823 K, $X_{Ca}=X_{Si}=0.5$, $\alpha_{Ca,Si}=-133890$ J/mol; β-cristobalite reference | Equation-derived $a_{SiO_2}=0.2575019792$, $a_{CaO}=0.01103118178$; no measured activity row. |
+| Reference EAF solve, [`eaf_slag_01.json`](examples/eaf_slag_01.json), default `banya93_xiao95_v1` profile | 1823.15 K, $`P_{CO}=1`$ atm; prescribed metal Cr 0.038, Mn 0.007, P 0.069 wt%; solved C about 0.0308 wt% | Computational regression and selected equilibrium identities at this input; no experimental full-solver validation. |
+| Chromium-free equimolar CaO–SiO₂ illustration, `banya93_casi_xiao95cr_hybrid_v1` with Ban-ya silica conversion | 1823 K, $`X_{Ca}=X_{Si}=0.5`$, $`\alpha_{Ca,Si}=-133890`$ J/mol; β-cristobalite reference | Equation-derived $`a_{SiO_2}=0.2575019792`$, $`a_{CaO}=0.01103118178`$; no measured activity row. |
 | All 11 Xiao and Holappa (1995) Table 1 SiO₂–CrO–CrO₁.₅ rows, default profile | 1873 K, source-reported valence splits, equilibrium with solid Cr | Isolated slag-activity comparisons using parameter-assessment data; in-sample, with measured Cr oxide and Gibbs–Duhem-derived silica activities distinguished below. |
 
 The reference slag assay is SiO₂ 27.495, CaO 35.597, MgO 1.999, Al₂O₃ 7.973,
@@ -137,14 +145,14 @@ Ti activity; Ban-ya lists nonzero Ti interactions that this implementation does
 not use. No universal safe Ti wt% limit has been established.
 
 The metal model uses first-order coefficients tabulated at 1873 K approximately
-at the 1823.15 K reference temperature. Second-order terms and $f_O$ corrections
+at the 1823.15 K reference temperature. Second-order terms and $`f_O`$ corrections
 are absent. Carbon-rich hot metal (for example, 3–5 wt% C) and the complete
 coupled model have not been empirically validated here. The FeO/CO equilibrium,
 carbon-dissolution and oxygen-saturation fits are inherited auxiliary data with
 incomplete directly verified provenance; they are not derived from the two
 oxide papers.
 
-Extreme chromium roots outside the current $10^{-6}$–$10^6$ bracket and trace
+Extreme chromium roots outside the current $`10^{-6}`$–$`10^6`$ bracket and trace
 species near floating-point roundoff remain deferred numerical findings. Results
 in those regions require further tests; passing the tested cases does not
 establish their reliability.
@@ -167,11 +175,11 @@ The 11 SiO₂–CrO–CrO₁.₅ compositions and chromium oxide activities are 
 in equilibrium with solid chromium. The paper reports the chromium oxide
 activities from EMF/oxygen-potential measurements. Its listed silica activities
 were calculated by Gibbs–Duhem, so they are shown separately and are not counted
-as direct measurements. The reported Cr²⁺ fraction and log $P_{O_2}$ are also
+as direct measurements. The reported Cr²⁺ fraction and log $`P_{O_2}`$ are also
 kept in the source fixture; they are not predictions from this isolated activity
 comparison.
 
-| Case | Reported → calculated $a_{CrO}$ (relative difference) | Reported → calculated $a_{CrO_{1.5}}$ (relative difference) | Gibbs–Duhem $a_{SiO_2}$ → calculated |
+| Case | Reported → calculated $`a_{CrO}`$ (relative difference) | Reported → calculated $`a_{CrO_{1.5}}`$ (relative difference) | Gibbs–Duhem $`a_{SiO_2}`$ → calculated |
 |---|---:|---:|---:|
 | T1-01 | 0.91 → 0.966670 (+6.23%) | 0.95 → 0.924719 (−2.66%) | 0.12 → 0.085732 (−28.56%) |
 | T1-02 | 0.94 → 0.773519 (−17.71%) | 1.00 → 1.005703 (+0.57%) | 0.06 → 0.069266 (+15.44%) |
@@ -195,10 +203,10 @@ Fig. 4 also shows scatter between calculated and measured chromium activities
 across systems; these numerical differences are reported as-is, without an
 activity-error acceptance threshold.
 
-At 1873 K, the printed CrO and CrO₁.₅ values give $Q/K$ values from 0.981 to
-1.028 when $Q=a_{CrO}^3/a_{CrO_{1.5}}^2$ and $K$ uses the pure-solid-Cr reaction
+At 1873 K, the printed CrO and CrO₁.₅ values give $`Q/K`$ values from 0.981 to
+1.028 when $`Q=a_{CrO}^3/a_{CrO_{1.5}}^2`$ and $`K`$ uses the pure-solid-Cr reaction
 in Xiao and Holappa Eqs. 9–10. All eleven rows' intervals obtained from their
-printed two-decimal activity precision include the calculated $K$; this is a
+printed two-decimal activity precision include the calculated $`K`$; this is a
 rounding-interval check on the source data, not a model-to-measurement pass
 criterion. The formation relation for liquid CrO cited on p. 321 was available
 only from 1665–1750 °C and was extrapolated by the authors to their measurements
@@ -242,8 +250,8 @@ uv run slag-model examples/eaf_slag_01.json -o report.json
 
 The program prints a formatted report to the terminal and, with `-o`, writes
 the full machine-readable report (input echo, redox splits, per-component
-$\gamma$ and $a$, prescribed metal and solved carbon, equilibrium diagnostics
-$Q/K$) to JSON.
+$`\gamma`$ and $`a`$, prescribed metal and solved carbon, equilibrium diagnostics
+$`Q/K`$) to JSON.
 
 ## Input JSON reference
 
@@ -348,10 +356,10 @@ The converged slag state.
 | Key            | Description |
 |----------------|-------------|
 | `calculation_mode` | `coupled` or `fixed_P_O2`; identifies which relations are enforced. |
-| `P_O2_atm`     | Oxygen potential calculated from FeO in coupled mode, or imposed in fixed-$P_{O_2}$ mode (atm). |
+| `P_O2_atm`     | Oxygen potential calculated from FeO in coupled mode, or imposed in fixed-$`P_{O_2}`$ mode (atm). |
 | `log10_P_O2`   | `log10(P_O2_atm)`. |
-| `r_Fe`         | Converged ratio $r_{Fe} = n_{Fe^{3+}} / n_{Fe^{2+}}$. |
-| `r_Cr`         | Converged ratio $r_{Cr} = n_{Cr^{2+}} / n_{Cr^{3+}}$. |
+| `r_Fe`         | Converged ratio $`r_{Fe} = n_{Fe^{3+}} / n_{Fe^{2+}}`$. |
+| `r_Cr`         | Converged ratio $`r_{Cr} = n_{Cr^{2+}} / n_{Cr^{3+}}`$. |
 | `iterations`   | Number of damped fixed-point iterations to convergence. |
 | `split_wtpc`   | Slag composition (wt%) **after** redox splitting: `FeO`, `Fe2O3`, `CrO`, `Cr2O3` plus the un-split oxides. |
 | `components`   | Array of per-cation rows distinguishing regular-solution and conventional activities (see below). |
@@ -363,9 +371,9 @@ Each modeled cation entry in `components`:
 | `cation` | Cation identity, such as `Fe2+` or `P5+`. |
 | `rs_species` | Regular-solution species per cation; P⁵⁺ uses `PO2.5` and Al³⁺ uses `AlO1.5`. |
 | `X_cation` | Cation mole fraction on the RSM basis. |
-| `RTln_gamma_RS_J_per_mol_cation` | $RT\ln\gamma_i^{RS}$, in J/mol of cation. |
+| `RTln_gamma_RS_J_per_mol_cation` | $`RT\ln\gamma_i^{RS}`$, in J/mol of cation. |
 | `gamma_RS` | Regular-solution coefficient for that cation. |
-| `a_RS` | Regular-solution activity, $X_{cation}\gamma_{RS}$. |
+| `a_RS` | Regular-solution activity, $`X_{cation}\gamma_{RS}`$. |
 | `conventional` | `null` when no conversion is documented; otherwise the conventional species, its `standard_state`, number of RSM units per formula unit, conversion energy, and activity. |
 | `conventional_unavailable_reason` | Explanation when `conventional` is `null`. |
 
@@ -400,23 +408,25 @@ oxygen diagnostics.
 
 | Field    | Description |
 |----------|-------------|
-| `C_wtpc` | Carbon from C–O equilibrium in coupled mode, or prescribed carbon in fixed-$P_{O_2}$ mode (wt%). |
-| `O_wtpc` | Approximate FeO-equilibrium oxygen estimate in coupled mode; `null` in fixed-$P_{O_2}$ mode. |
+| `C_wtpc` | Carbon from C–O equilibrium in coupled mode, or prescribed carbon in fixed-$`P_{O_2}`$ mode (wt%). |
+| `O_wtpc` | Approximate FeO-equilibrium oxygen estimate in coupled mode; `null` in fixed-$`P_{O_2}`$ mode. |
 | `O_FeO_equivalent_wtpc` | Separately named approximate FeO-equivalent estimate in either mode; it need not describe oxygen at the imposed pressure. |
 | `oxygen_diagnostic` | Status and basis: `approximate_FeO_equilibrium` for coupled mode or `FeO_equivalent_only` for fixed mode. |
 | `f_C`    | Henrian activity coefficient of carbon (WIPF). |
 | `f_Cr`   | Henrian activity coefficient of chromium. |
 | `f_Mn`   | Henrian activity coefficient of manganese. |
 | `f_P`    | Henrian activity coefficient of phosphorus. |
-| `a_C`    | Carbon activity $a_C = f_C[\%C]$ (Henrian 1 wt% scale). |
-| `a_Cr`   | Chromium activity $a_{Cr} = f_{Cr}[\%Cr]$. |
+| `a_C`    | Carbon activity $`a_C = f_C[\%C]`$ (Henrian 1 wt% scale). |
+| `a_Cr`   | Chromium activity $`a_{Cr} = f_{Cr}[\%Cr]`$. |
 
 The oxygen estimate is explicitly approximate:
 
-$$[\%O]_{FeO\ equivalent}
-=\frac{a_{FeO}}{a_{Fe}}\,10^{-6320/T+2.734}.$$
+```math
+[\%O]_{FeO\ equivalent}
+=\frac{a_{FeO}}{a_{Fe}}\,10^{-6320/T+2.734}.
+```
 
-It uses the selected iron activity, assumes $f_O=1$, and retains the inherited
+It uses the selected iron activity, assumes $`f_O=1`$, and retains the inherited
 empirical saturation fit. Coupled mode reports the same estimate under both
 oxygen fields. Fixed mode cannot infer dissolved oxygen from this FeO relation
 at its imposed pressure because FeO equilibrium is not enforced.
@@ -425,13 +435,13 @@ at its imposed pressure because FeO equilibrium is not enforced.
 
 | Field         | Description |
 |---------------|-------------|
-| `K_FeO`       | Equilibrium constant of $Fe(l) + \tfrac12 O_2 = FeO(l)$ at $T$. |
-| `K_CO`        | Equilibrium constant of $[C] + \tfrac12 O_2 = CO(g)$ (Henrian C). |
-| `K_Cr`        | Equilibrium constant of chromium comproportionation $2\,CrO_{1.5} + [Cr] = 3\,CrO$ at $T$. |
-| `enforced_relations` | `['FeO', 'CO', 'Cr', 'Fe_redox']` in coupled mode; `['Cr', 'Fe_redox']` in fixed-$P_{O_2}$ mode. |
+| `K_FeO`       | Equilibrium constant of $`Fe(l) + \tfrac12 O_2 = FeO(l)`$ at $`T`$. |
+| `K_CO`        | Equilibrium constant of $`[C] + \tfrac12 O_2 = CO(g)`$ (Henrian C). |
+| `K_Cr`        | Equilibrium constant of chromium comproportionation $`2\,CrO_{1.5} + [Cr] = 3\,CrO`$ at $`T`$. |
+| `enforced_relations` | `['FeO', 'CO', 'Cr', 'Fe_redox']` in coupled mode; `['Cr', 'Fe_redox']` in fixed-$`P_{O_2}`$ mode. |
 | `Q_over_K_FeO`| Fe–O quotient at the reported pressure; approximately 1 within tolerance in coupled mode, diagnostic only in fixed mode. |
 | `Q_over_K_CO` | C–O quotient at the reported pressure; approximately 1 within tolerance in coupled mode, diagnostic only in fixed mode. |
-| `Q_over_K_Cr` | Reaction-quotient / $K$ check for the enforced Cr comproportionation relation only; does not certify Cr–O equilibrium (`null` if no Cr present). |
+| `Q_over_K_Cr` | Reaction-quotient / $`K`$ check for the enforced Cr comproportionation relation only; does not certify Cr–O equilibrium (`null` if no Cr present). |
 
 An enforced-relation identity near unity checks the calculation's consistency;
 it does not establish experimental accuracy. A non-unity FeO or CO quotient in
@@ -519,12 +529,12 @@ These are **explicit** — the model does not invent values:
 3. **Fe–Cr, Mn–Cr, P–Cr pair interactions are assumed zero** because parameters
    are unavailable. The Xiao and Holappa (1995) chromium set covers the studied
    Ca/Mg/Si/Al/Cr partners; the zero assumptions are not measurements.
-4. **WIPF $e_i^j$** are 1873 K values approximately applied at 1823.15 K.
+4. **WIPF $`e_i^j`$** are 1873 K values approximately applied at 1823.15 K.
    Neglecting higher-order terms has not been validated for carbon-rich hot
-   metal. The corrected $e_{Mn}^{C}=-0.07$ is from Lei, Fu and Xiong (2024),
+   metal. The corrected $`e_{Mn}^{C}=-0.07`$ is from Lei, Fu and Xiong (2024),
    Table 1, p. 112, which cites Chen's 2010 steelmaking databook; the original
    Sigworth and Elliott table was not directly verified for this coefficient.
-   The distinct $e_C^{Mn}=-0.012$ is retained; Wagner coefficients are asymmetric.
+   The distinct $`e_C^{Mn}=-0.012`$ is retained; Wagner coefficients are asymmetric.
 
 ## Related literature (context only)
 
@@ -595,7 +605,7 @@ oxygen potential, oxide phase, and activity standard state.
    Vacuum Melting of High-manganese Steel*, Archives of Foundry Engineering
    **24** (2024), No. 2, 110–116, doi:10.24425/afe.2024.149277.
    [Table 1, p. 112](https://journals.pan.pl/Content/131630/AFE%202_2024_13-Final.pdf)
-   — the checked compilation for $e_{Mn}^{C}=-0.07$ at 1873 K; its reference
+   — the checked compilation for $`e_{Mn}^{C}=-0.07`$ at 1873 K; its reference
    [22] is Chen (2010), *Common Charts and Databook for Steelmaking*.
 
 ## License
