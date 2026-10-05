@@ -28,7 +28,7 @@ while retaining the prescribed compositions:
    fractions $`X_i`$ and pair interaction energies $`\alpha_{ij}`$:
 
 ```math
-RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{\substack{j<k \\ j,k\ne i}} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k
+RT\ln\gamma_i^{RS} = \sum_j \alpha_{ij} X_j^2 + \sum_{j\lt k,\;j,k\ne i} (\alpha_{ij} + \alpha_{ik} - \alpha_{jk}) X_j X_k
 ```
 
    The model reports both regular-solution cation activities and conventional
