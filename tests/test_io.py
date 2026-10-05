@@ -7,10 +7,11 @@ import math
 
 import pytest
 
+from slag_model import data
 from slag_model.constants import R
 from slag_model.data import CONVERSION_STANDARD_STATES
 from slag_model.io import InputError, build_report, parse_input
-from slag_model.solver import solve
+from slag_model.solver import solve, solve_redox_fixed_po2
 
 VALID_JSON = {
     "temperature_K": 1823.15,
@@ -59,6 +60,29 @@ def test_defaults():
     assert cfg.temperature_K == 1823.15
     assert cfg.P_CO_atm == 1.0
     assert cfg.metal_wtpc == {"Cr": 0.0, "Mn": 0.0, "P": 0.0}
+    assert cfg.options.parameter_profile == data.DEFAULT_PARAMETER_PROFILE
+
+
+def test_named_parameter_profile_round_trips_through_v2_report():
+    profile_id = "banya93_casi_xiao95cr_hybrid_v1"
+    payload = {**VALID_JSON, "options": {**VALID_JSON["options"], "parameter_profile": profile_id}}
+    cfg = parse_input(json.dumps(payload))
+    report = build_report(cfg, solve(cfg))
+
+    assert report["schema_version"] == 2
+    assert report["input"]["options"]["parameter_profile"] == profile_id
+    assert report["parameter_profile"] == data.PARAMETER_PROFILE_METADATA[profile_id]
+    reparsed = parse_input(json.dumps(report["input"]))
+    assert reparsed.options.parameter_profile == profile_id
+
+
+def test_unknown_parameter_profile_is_rejected():
+    payload = {
+        **VALID_JSON,
+        "options": {**VALID_JSON["options"], "parameter_profile": "invented-v99"},
+    }
+    with pytest.raises(InputError, match="parameter_profile"):
+        parse_input(json.dumps(payload))
 
 
 def test_unknown_top_key():
@@ -226,10 +250,43 @@ def test_report_v2_distinguishes_rs_and_formula_unit_activities():
     assert aluminum["conventional_unavailable_reason"] == "no documented conversion"
     assert "gamma" not in aluminum
     assert "a" not in aluminum
-
     iron = rows["Fe2+"]["conventional"]
     assert iron["gamma_fraction_basis"] == "X_cation"
     assert "gamma" in iron
+
+
+def test_report_describes_oxygen_diagnostic_and_enforced_relations():
+    cfg = parse_input(json.dumps(VALID_JSON))
+    coupled = build_report(cfg, solve(cfg))
+    expected_basis = {
+        "activity_ratio": "a_FeO/a_Fe",
+        "oxygen_activity_coefficient": "f_O=1",
+        "saturation_fit": "inherited empirical liquid-iron saturation fit",
+    }
+    assert coupled["solution"]["calculation_mode"] == "coupled"
+    assert coupled["metal"]["O_wtpc"] == coupled["metal"]["O_FeO_equivalent_wtpc"]
+    assert coupled["metal"]["oxygen_diagnostic"] == {
+        "status": "approximate_FeO_equilibrium",
+        "basis": expected_basis,
+    }
+    assert coupled["equilibrium"]["enforced_relations"] == [
+        "FeO",
+        "CO",
+        "Cr",
+        "Fe_redox",
+    ]
+
+    fixed = solve_redox_fixed_po2(cfg, P_O2=1.0e-9, C=0.018)
+    fixed_report = build_report(cfg, fixed)
+    assert fixed_report["solution"]["calculation_mode"] == "fixed_P_O2"
+    assert fixed_report["metal"]["O_wtpc"] is None
+    assert fixed_report["metal"]["O_FeO_equivalent_wtpc"] is not None
+    assert fixed_report["metal"]["oxygen_diagnostic"] == {
+        "status": "FeO_equivalent_only",
+        "basis": expected_basis,
+    }
+    assert fixed_report["equilibrium"]["enforced_relations"] == ["Cr", "Fe_redox"]
+    assert json.loads(json.dumps(fixed_report))["metal"]["O_wtpc"] is None
 
 
 def test_as_excel_titanium_report_is_denominator_only_without_activity():

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
+from slag_model import data
 from slag_model.constants import (
     CATIONS_PER_FORMULA,
     MOLAR_MASS_ELEMENT,
@@ -50,3 +52,23 @@ def test_eij_shape():
 def test_cation_to_oxide_covers_order():
     for cation in CATION_ORDER:
         assert cation in CATION_TO_OXIDE
+
+
+def test_named_parameter_profiles_have_source_exact_values_and_immutable_matrices():
+    assert hasattr(data, "DEFAULT_PARAMETER_PROFILE")
+    assert data.DEFAULT_PARAMETER_PROFILE == "banya93_xiao95_v1"
+    assert set(data.PARAMETER_PROFILES) == {
+        "banya93_xiao95_v1",
+        "banya93_casi_xiao95cr_hybrid_v1",
+        "legacy_workbook_typo_hybrid_v1",
+    }
+    i_fe3, i_ca = CATION_ORDER.index("Fe3+"), CATION_ORDER.index("Ca2+")
+    i_si = CATION_ORDER.index("Si4+")
+    assert data.PARAMETER_PROFILES[data.DEFAULT_PARAMETER_PROFILE][i_fe3, i_ca] == -95810.0
+    assert data.PARAMETER_PROFILES[data.DEFAULT_PARAMETER_PROFILE][i_ca, i_si] == -139100.0
+    assert data.PARAMETER_PROFILES["banya93_casi_xiao95cr_hybrid_v1"][i_fe3, i_ca] == -95810.0
+    assert data.PARAMETER_PROFILES["banya93_casi_xiao95cr_hybrid_v1"][i_ca, i_si] == -133890.0
+    assert data.PARAMETER_PROFILES["legacy_workbook_typo_hybrid_v1"][i_fe3, i_ca] == -96810.0
+    assert data.PARAMETER_PROFILES["legacy_workbook_typo_hybrid_v1"][i_ca, i_si] == -133890.0
+    with pytest.raises(ValueError):
+        data.PARAMETER_PROFILES[data.DEFAULT_PARAMETER_PROFILE][i_fe3, i_ca] = 0.0

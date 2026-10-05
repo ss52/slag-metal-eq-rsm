@@ -1,64 +1,54 @@
 {
-  "schema_version": 1,
-  "purpose": "Published-data fixtures for validating the slag regular-solution model and slag-metal redox coupling.",
+  "schema_version": 2,
+  "purpose": "Source-exact Ban-ya 1993 equations, oxide parameters and conversions, plus the Xiao and Holappa 1995 chromium-oxide Table 1 data used in their parameter assessment.",
   "sources": [
     {
       "id": "banya_1993",
       "citation": "S. Ban-ya, ISIJ International 33 (1993) 2-11, doi:10.2355/isijinternational.33.2",
-      "url": "https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_2/_article",
+      "url": "https://www.jstage.jst.go.jp/article/isijinternational1989/33/1/33_1_2/_pdf",
+      "scope": "oxide_model",
       "used_for": [
-        "quadratic regular-solution equation",
-        "Table 2 interaction energies",
-        "Table 3 standard-state conversions",
-        "Eq. 24 ferrous-ferric relation"
-      ]
-    },
-    {
-      "id": "banya_1985",
-      "citation": "S. Ban-ya, F. Ishii, Y. Iguchi, and T. Nagasaka, Tetsu-to-Hagané 71 (1985), No. 7, 853-860, doi:10.2355/tetsutohagane1955.71.7_853",
-      "url": "https://www.jstage.jst.go.jp/article/tetsutohagane1955/71/7/71_7_853/_article",
-      "used_for": [
-        "Table 1, p. 854: four reported oxide mass fractions, Fe3+/Fe2+, and measured a_Fe_tO at 1450 C with solid iron"
+        "Table 1 major-component cation interaction energies",
+        "Table 3 standard-state conversion factors",
+        "Eq. 24 ferrous-ferric relation",
+        "P2O5 formula-unit conversion relation"
       ]
     },
     {
       "id": "xiao_holappa_1995",
       "citation": "Y. Xiao and L. Holappa, Thermodynamics of Slags Containing Chromium Oxides, INFACON 7, Trondheim (1995), 319-328",
       "url": "https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf",
+      "scope": "oxide_model_and_in_sample_comparison",
       "used_for": [
-        "2 CrO1.5 + Cr(s) = 3 CrO; Delta G degree = 25690 - 13.36 T cal/mol; p. 322, Eqs. 9-10",
-        "pure-solid chromium standard state"
+        "Table 1 SiO2-CrO-CrO1.5 compositions and reported activities at 1873 K",
+        "Table 2 assessed chromium-containing cation interaction energies",
+        "Table 3 chromium-oxide standard-state conversions",
+        "p. 322, Eqs. 9-10 pure-solid-chromium oxide redox reaction",
+        "p. 322, Gibbs-Duhem calculation of SiO2 activity in Table 1"
       ]
     },
     {
       "id": "xiao_kou_fang_2018",
       "citation": "S. Xiao, Q. Kou, and X. Fang, Mutual Calculation between Standard Dissolved Gibbs Free Energy and Differential Dissolution Enthalpy Based on a Model of Dilute Solution, Chinese Journal of Process Engineering 18(2) (2018) 417-421, doi:10.12034/j.issn.1009-606X.217281",
       "url": "https://jproeng.ipe.ac.cn/CN/abstract/abstract3039.shtml",
+      "scope": "metal_side_coefficient_only",
       "used_for": [
         "Cr(s) = [Cr] on the Henrian 1 mass-percent standard state; Delta G degree = 19246 - 46.86 T J/mol; p. 419, Table 1"
-      ]
-    },
-    {
-      "id": "xiao_holappa_reuter_2002",
-      "citation": "Y. Xiao, L. Holappa and M.A. Reuter, Metallurgical and Materials Transactions B 33 (2002) 595-603, doi:10.1007/s11663-002-0039-9",
-      "url": "https://doi.org/10.1007/s11663-002-0039-9",
-      "used_for": [
-        "Table I experimental CaO-SiO2-CrO-CrO1.5 cases at 1873 K",
-        "Table III interaction energies",
-        "Table IV standard-state conversions"
       ]
     },
     {
       "id": "sigworth_elliott_1974",
       "citation": "G.K. Sigworth and J.F. Elliott, Metal Science 8 (1974) 298-310, doi:10.1179/msc.1974.8.1.298",
       "url": "https://doi.org/10.1179/msc.1974.8.1.298",
+      "scope": "metal_side_coefficients_only",
       "used_for": [
-        "Wagner first-order interaction parameters"
+        "Wagner first-order interaction parameters for the steel bath only"
       ]
     }
   ],
   "banya_1993": {
     "interaction_energy_J_per_mol": {
+      "Ca2+|Si4+": -133890.0,
       "Fe3+|Ca2+": -95810.0
     },
     "conversion_A_plus_B_T_J_per_mol": {
@@ -68,8 +58,13 @@
       "MnO": [-32470.0, 26.143],
       "P2O5": [52720.0, -230.706]
     },
+    "silica_conversions_A_plus_B_T_J_per_mol": {
+      "SiO2(p-tr)=SiO2(RS)": [27150.0, -2.054],
+      "SiO2(beta-cristobalite)=SiO2(RS)": [27030.0, -1.983],
+      "SiO2(liq)=SiO2(RS)": [17450.0, 2.82]
+    },
     "fe_redox_eq_24": {
-      "log10_relation": "6625/T - 2.77 + 0.25*log10(P_O2) + log10(gamma_FeO_RS) - log10(gamma_FeO1.5_RS)",
+      "log10_relation": "log10(n_Fe3+/n_Fe2+) = 6625/T - 2.77 + 0.25*log10(P_O2) + log10(gamma_FeO_RS) - log10(gamma_FeO1.5_RS)",
       "gamma_standard_state": "regular_solution"
     },
     "p2o5_conversion": {
@@ -77,60 +72,135 @@
       "activity_relation": "ln(a_P2O5) = 2 ln(a_PO2.5_RS) + DeltaG_conversion/(R*T)"
     }
   },
-  "banya_1985": {
-    "temperature_K": 1723.15,
-    "activity_standard_state": "Fe_tO(l) equilibrated with Fe(s or l), Ban-ya (1993) Table 3; the 1985 Table I measurements used solid Fe",
-    "oxide_basis": "Normalize only the four reported oxides; do not assign the unreported mass balance",
-    "case_selection": "First Table I row in each nominal a_Fe_tO band 0.1, 0.3, 0.5, and 0.7, plus the first row in band 0.9 as an out-of-range diagnostic",
-    "experimental_cases_1723_15_K": [
-      {
-        "id": "101",
-        "reported_wt_percent": {"FeO": 5.46, "Fe2O3": 0.46, "SiO2": 29.14, "MnO": 63.64},
-        "reported_Fe3_to_Fe2": 0.076,
-        "measured_activity_Fe_tO": 0.100,
-        "nominal_activity_band": 0.1,
-        "validation_role": "project_screen"
-      },
-      {
-        "id": "301",
-        "reported_wt_percent": {"FeO": 18.82, "Fe2O3": 0.52, "SiO2": 26.06, "MnO": 54.29},
-        "reported_Fe3_to_Fe2": 0.025,
-        "measured_activity_Fe_tO": 0.299,
-        "nominal_activity_band": 0.3,
-        "validation_role": "project_screen"
-      },
-      {
-        "id": "501",
-        "reported_wt_percent": {"FeO": 35.31, "Fe2O3": 2.13, "SiO2": 25.76, "MnO": 36.42},
-        "reported_Fe3_to_Fe2": 0.054,
-        "measured_activity_Fe_tO": 0.499,
-        "nominal_activity_band": 0.5,
-        "validation_role": "project_screen"
-      },
-      {
-        "id": "701",
-        "reported_wt_percent": {"FeO": 54.44, "Fe2O3": 4.54, "SiO2": 20.52, "MnO": 20.50},
-        "reported_Fe3_to_Fe2": 0.075,
-        "measured_activity_Fe_tO": 0.702,
-        "nominal_activity_band": 0.7,
-        "validation_role": "project_screen"
-      },
-      {
-        "id": "901",
-        "reported_wt_percent": {"FeO": 77.65, "Fe2O3": 8.03, "SiO2": 10.37, "MnO": 3.44},
-        "reported_Fe3_to_Fe2": 0.093,
-        "measured_activity_Fe_tO": 0.899,
-        "nominal_activity_band": 0.9,
-        "validation_role": "stress_diagnostic"
-      }
-    ]
-  },
   "xiao_holappa_1995": {
+    "temperature_K": 1873.0,
+    "measured_activity_decimal_places": 2,
+    "equilibration_metal_standard_state": "pure solid chromium, activity unity",
+    "activity_standard_states": {
+      "CrO": "pure liquid CrO",
+      "CrO1.5": "pure solid CrO1.5"
+    },
     "chromium_redox": {
       "reaction": "2 CrO1.5 + Cr(s) = 3 CrO",
       "delta_g_A_plus_B_T_cal_per_mol": [25690.0, -13.36],
       "metal_standard_state": "pure_solid_chromium"
-    }
+    },
+    "interaction_energy_J_per_mol": {
+      "Ca2+|Si4+": -139100.0,
+      "Ca2+|Cr2+": -6140.0,
+      "Ca2+|Cr3+": 44235.0,
+      "Si4+|Cr2+": -60540.0,
+      "Si4+|Cr3+": -48975.0,
+      "Cr2+|Cr3+": 32710.0,
+      "Cr2+|Mg2+": 5520.0,
+      "Cr3+|Mg2+": 28085.0,
+      "Cr2+|Al3+": -30285.0,
+      "Cr3+|Al3+": -46210.0
+    },
+    "conversion_A_plus_B_T_J_per_mol": {
+      "CrO(liq)=CrO(RS)": [77150.0, -33.5],
+      "CrO1.5(s)=CrO1.5(RS)": [74967.0, -37.5],
+      "CrO1.5(liq)=CrO1.5(RS)": [10152.0, -12.6],
+      "CrO1.5(s)=CrO1.5(liq)": [64815.0, -24.9]
+    },
+    "silica_conversion_A_plus_B_T_J_per_mol": [51346.0, -13.88],
+    "experimental_data_role": "in_sample_parameter_assessment_data; not independent validation",
+    "model_activity_comparison_basis": "regular-solution calculation using Table 2 parameters and Table 3 conversions",
+    "activity_provenance": {
+      "CrO": "EMF-derived activity measurement",
+      "CrO1.5": "EMF-derived activity measurement",
+      "SiO2": "calculated from Gibbs-Duhem, not directly measured"
+    },
+    "experimental_cases_1873_K": [
+      {
+        "id": "T1-01",
+        "mol_percent": {"CrO": 14.16, "CrO1.5": 67.54, "SiO2": 18.3},
+        "measured_activity": {"CrO": 0.91, "CrO1.5": 0.95},
+        "gibbs_duhem_calculated_activity_SiO2": 0.12,
+        "reported_Cr2plus_fraction": 0.17,
+        "reported_log10_P_O2_atm": -12.06
+      },
+      {
+        "id": "T1-02",
+        "mol_percent": {"CrO": 8.55, "CrO1.5": 75.93, "SiO2": 15.52},
+        "measured_activity": {"CrO": 0.94, "CrO1.5": 1.0},
+        "gibbs_duhem_calculated_activity_SiO2": 0.06,
+        "reported_Cr2plus_fraction": 0.1,
+        "reported_log10_P_O2_atm": -12.03
+      },
+      {
+        "id": "T1-03",
+        "mol_percent": {"CrO": 19.48, "CrO1.5": 59.32, "SiO2": 21.2},
+        "measured_activity": {"CrO": 0.8, "CrO1.5": 0.79},
+        "gibbs_duhem_calculated_activity_SiO2": 0.19,
+        "reported_Cr2plus_fraction": 0.25,
+        "reported_log10_P_O2_atm": -12.17
+      },
+      {
+        "id": "T1-04",
+        "mol_percent": {"CrO": 11.99, "CrO1.5": 61.31, "SiO2": 26.7},
+        "measured_activity": {"CrO": 0.72, "CrO1.5": 0.67},
+        "gibbs_duhem_calculated_activity_SiO2": 0.37,
+        "reported_Cr2plus_fraction": 0.16,
+        "reported_log10_P_O2_atm": -12.26
+      },
+      {
+        "id": "T1-05",
+        "mol_percent": {"CrO": 18.88, "CrO1.5": 54.59, "SiO2": 26.53},
+        "measured_activity": {"CrO": 0.66, "CrO1.5": 0.59},
+        "gibbs_duhem_calculated_activity_SiO2": 0.36,
+        "reported_Cr2plus_fraction": 0.26,
+        "reported_log10_P_O2_atm": -12.33
+      },
+      {
+        "id": "T1-06",
+        "mol_percent": {"CrO": 19.46, "CrO1.5": 45.01, "SiO2": 35.53},
+        "measured_activity": {"CrO": 0.54, "CrO1.5": 0.43},
+        "gibbs_duhem_calculated_activity_SiO2": 0.66,
+        "reported_Cr2plus_fraction": 0.3,
+        "reported_log10_P_O2_atm": -12.51
+      },
+      {
+        "id": "T1-07",
+        "mol_percent": {"CrO": 10.48, "CrO1.5": 50.82, "SiO2": 38.7},
+        "measured_activity": {"CrO": 0.55, "CrO1.5": 0.44},
+        "gibbs_duhem_calculated_activity_SiO2": 0.75,
+        "reported_Cr2plus_fraction": 0.17,
+        "reported_log10_P_O2_atm": -12.5
+      },
+      {
+        "id": "T1-08",
+        "mol_percent": {"CrO": 13.16, "CrO1.5": 63.37, "SiO2": 23.47},
+        "measured_activity": {"CrO": 0.77, "CrO1.5": 0.74},
+        "gibbs_duhem_calculated_activity_SiO2": 0.26,
+        "reported_Cr2plus_fraction": 0.17,
+        "reported_log10_P_O2_atm": -12.2
+      },
+      {
+        "id": "T1-09",
+        "mol_percent": {"CrO": 13.35, "CrO1.5": 57.48, "SiO2": 29.17},
+        "measured_activity": {"CrO": 0.62, "CrO1.5": 0.53},
+        "gibbs_duhem_calculated_activity_SiO2": 0.46,
+        "reported_Cr2plus_fraction": 0.19,
+        "reported_log10_P_O2_atm": -12.39
+      },
+      {
+        "id": "T1-10",
+        "mol_percent": {"CrO": 7.23, "CrO1.5": 55.74, "SiO2": 37.03},
+        "measured_activity": {"CrO": 0.6, "CrO1.5": 0.51},
+        "gibbs_duhem_calculated_activity_SiO2": 0.7,
+        "reported_Cr2plus_fraction": 0.11,
+        "reported_log10_P_O2_atm": -12.42
+      },
+      {
+        "id": "T1-11",
+        "mol_percent": {"CrO": 13.1, "CrO1.5": 47.4, "SiO2": 39.5},
+        "measured_activity": {"CrO": 0.55, "CrO1.5": 0.44},
+        "gibbs_duhem_calculated_activity_SiO2": 0.77,
+        "reported_Cr2plus_fraction": 0.22,
+        "reported_log10_P_O2_atm": -12.5
+      }
+    ]
   },
   "xiao_kou_fang_2018": {
     "chromium_dissolution_for_library_standard": {
@@ -138,116 +208,42 @@
       "delta_g_A_plus_B_T_J_per_mol": [19246.0, -46.86]
     }
   },
-  "xiao_holappa_reuter_2002": {
-    "interaction_energy_J_per_mol": {
-      "Ca2+|Si4+": -139100.0,
-      "Ca2+|Cr2+": -6140.0,
-      "Ca2+|Cr3+": 44235.0,
-      "Si4+|Cr2+": -60540.0,
-      "Si4+|Cr3+": -48975.0,
-      "Cr2+|Cr3+": 32710.0
-    },
-    "conversion_A_plus_B_T_J_per_mol": {
-      "CrO": [77150.0, -33.5],
-      "CrO1.5": [74967.0, -37.5],
-      "SiO2": [51346.0, -13.88]
-    },
-    "experimental_cases_1873_K": [
-      {
-        "id": "CSC1",
-        "mol_percent": {"CaO": 54.3, "SiO2": 36.9, "CrO": 6.2, "CrO1.5": 2.6},
-        "measured_activity": {"CrO": 0.39, "CrO1.5": 0.27},
-        "measured_gamma": {"CrO": 6.31, "CrO1.5": 10.2}
-      },
-      {
-        "id": "CSC2",
-        "mol_percent": {"CaO": 48.5, "SiO2": 33.8, "CrO": 11.8, "CrO1.5": 5.8},
-        "measured_activity": {"CrO": 0.52, "CrO1.5": 0.41},
-        "measured_gamma": {"CrO": 4.42, "CrO1.5": 7.13}
-      },
-      {
-        "id": "CSC3",
-        "mol_percent": {"CaO": 42.7, "SiO2": 29.9, "CrO": 14.3, "CrO1.5": 13.1},
-        "measured_activity": {"CrO": 0.74, "CrO1.5": 0.70},
-        "measured_gamma": {"CrO": 5.18, "CrO1.5": 5.33}
-      },
-      {
-        "id": "CSC4",
-        "mol_percent": {"CaO": 37.1, "SiO2": 26.1, "CrO": 16.9, "CrO1.5": 19.9},
-        "measured_activity": {"CrO": 0.95, "CrO1.5": 1.00},
-        "measured_gamma": {"CrO": 5.60, "CrO1.5": 5.03}
-      },
-      {
-        "id": "CSC7",
-        "mol_percent": {"CaO": 43.5, "SiO2": 50.9, "CrO": 4.9, "CrO1.5": 0.7},
-        "measured_activity": {"CrO": 0.11, "CrO1.5": 0.03},
-        "measured_gamma": {"CrO": 2.16, "CrO1.5": 4.52}
-      },
-      {
-        "id": "CSC10",
-        "mol_percent": {"CaO": 41.8, "SiO2": 44.7, "CrO": 11.5, "CrO1.5": 2.0},
-        "measured_activity": {"CrO": 0.30, "CrO1.5": 0.18},
-        "measured_gamma": {"CrO": 2.58, "CrO1.5": 8.80}
-      },
-      {
-        "id": "CSC11",
-        "mol_percent": {"CaO": 38.3, "SiO2": 40.3, "CrO": 14.7, "CrO1.5": 6.7},
-        "measured_activity": {"CrO": 0.53, "CrO1.5": 0.42},
-        "measured_gamma": {"CrO": 3.58, "CrO1.5": 6.23}
-      },
-      {
-        "id": "CSC12",
-        "mol_percent": {"CaO": 35.1, "SiO2": 37.6, "CrO": 16.3, "CrO1.5": 11.0},
-        "measured_activity": {"CrO": 0.57, "CrO1.5": 0.47},
-        "measured_gamma": {"CrO": 3.50, "CrO1.5": 4.28}
-      }
-    ]
+  "sigworth_elliott_1974": {
+    "parameter_scope": "metal_side_only"
   },
   "model_diagnostic_snapshots": {
-    "banya_1985_1723_15_K": {
-      "description": "Calculated isolated slag Fe_tO activities from the current model; model outputs, not paper measurements.",
-      "activity_Fe_tO": {"101": 0.104851, "301": 0.318198, "501": 0.477476, "701": 0.650590, "901": 0.918068}
-    },
-    "xiao_2002_1873_K": {
-      "description": "Calculated isolated slag CrO and CrO1.5 activities from the current model; model outputs, not paper measurements.",
+    "xiao_holappa_1995_1873_K": {
+      "description": "Calculated model activities for the in-sample Table 1 compositions; these are predictions, not measured values.",
       "activities": {
-        "CSC1": {"CrO": 0.194370, "CrO1.5": 0.359843},
-        "CSC2": {"CrO": 0.354057, "CrO1.5": 0.655808},
-        "CSC3": {"CrO": 0.422094, "CrO1.5": 1.058774},
-        "CSC4": {"CrO": 0.504565, "CrO1.5": 1.208080},
-        "CSC7": {"CrO": 0.109084, "CrO1.5": 0.054508},
-        "CSC10": {"CrO": 0.279832, "CrO1.5": 0.171988},
-        "CSC11": {"CrO": 0.368475, "CrO1.5": 0.497033},
-        "CSC12": {"CrO": 0.414866, "CrO1.5": 0.691888}
-      },
-      "q_over_k_pure_solid_cr": {
-        "CSC1": 0.068,
-        "CSC2": 0.123,
-        "CSC3": 0.080,
-        "CSC4": 0.105,
-        "CSC7": 0.523,
-        "CSC10": 0.886,
-        "CSC11": 0.242,
-        "CSC12": 0.178
+        "T1-01": {"CrO": 0.966670, "CrO1.5": 0.924719, "SiO2": 0.085732},
+        "T1-02": {"CrO": 0.773519, "CrO1.5": 1.005703, "SiO2": 0.069266},
+        "T1-03": {"CrO": 1.024726, "CrO1.5": 0.849820, "SiO2": 0.107210},
+        "T1-04": {"CrO": 0.630419, "CrO1.5": 0.749387, "SiO2": 0.201461},
+        "T1-05": {"CrO": 0.824443, "CrO1.5": 0.736625, "SiO2": 0.179744},
+        "T1-06": {"CrO": 0.571285, "CrO1.5": 0.540390, "SiO2": 0.371085},
+        "T1-07": {"CrO": 0.331747, "CrO1.5": 0.493709, "SiO2": 0.515357},
+        "T1-08": {"CrO": 0.762132, "CrO1.5": 0.817495, "SiO2": 0.147549},
+        "T1-09": {"CrO": 0.607896, "CrO1.5": 0.691102, "SiO2": 0.243303},
+        "T1-10": {"CrO": 0.271959, "CrO1.5": 0.535309, "SiO2": 0.481352},
+        "T1-11": {"CrO": 0.372342, "CrO1.5": 0.472193, "SiO2": 0.526504}
       }
     }
   },
-  "xiao_2002_measured_activity_q_over_k_snapshot": {
-    "CSC1": 0.973,
-    "CSC2": 1.001,
-    "CSC3": 0.989,
-    "CSC4": 1.026,
-    "CSC7": 1.769,
-    "CSC10": 0.997,
-    "CSC11": 1.010,
-    "CSC12": 1.003
+  "analytical_cases": {
+    "banya_1993_ca_si_equal_cations": {
+      "role": "equation_derived_analytical_illustration_not_measured_or_validation",
+      "source": "Ban-ya (1993) Table 1, Table 3, and regular-solution equation",
+      "temperature_K": 1823.0,
+      "parameter_profile": "banya93_casi_xiao95cr_hybrid_v1",
+      "cation_fractions": {"Ca2+": 0.5, "Si4+": 0.5},
+      "alpha_Ca2+_Si4+_J_per_mol": -133890.0,
+      "delta_G_SiO2_beta_cr_A_plus_B_T_J_per_mol": [27030.0, -1.983],
+      "expected_activity": {"SiO2": 0.2575019792, "CaO": 0.01103118178}
+    }
   },
   "validation_policy": {
-    "transcribed_constants": "exact apart from floating-point representation",
-    "equation_identities": "relative tolerance 1e-12",
-    "banya_activity_relative_error_screen": 0.1,
-    "banya_screen_interpretation": "10% project screening threshold for preselected rows 101, 301, 501, and 701; not a statement of source measurement uncertainty",
-    "xiao_source_activity_identity_abs_tolerance": 0.006,
-    "xiao_q_over_k_interpretation": "Calculated from the paper's rounded measured activities and pure-solid chromium equilibrium; seven rows are near unity, while CSC7 is a printed-row anomaly. The paper specifies no quantitative activity-error acceptance bound."
+    "source_transcription": "Exact printed table decimals; preserve the paper's reported rounding.",
+    "xiao_1995_table_1": "In-sample parameter-assessment comparison only; report calculated-minus-reported values without an acceptance tolerance.",
+    "silica_activity": "Table 1 a_SiO2 values are Gibbs-Duhem calculations in the source, not direct measurements."
   }
 }

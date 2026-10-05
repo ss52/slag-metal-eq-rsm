@@ -9,8 +9,11 @@ from pathlib import Path
 
 from .data import (
     CHROMIUM_INPUT_KEYS,
+    DEFAULT_PARAMETER_PROFILE,
     IRON_INPUT_KEYS,
     METAL_INPUT_KEYS,
+    PARAMETER_PROFILE_METADATA,
+    PARAMETER_PROFILES,
 )
 from .rsm import ConversionSpec
 
@@ -27,6 +30,7 @@ ALL_INPUT_OXIDE_KEYS = INPUT_OXIDE_KEYS | set(IRON_INPUT_KEYS) | set(CHROMIUM_IN
 
 OPTION_KEYS = {
     "cross_terms",
+    "parameter_profile",
     "ti_handling",
     "sio2_conversion",
     "fe2o3_conversion",
@@ -51,6 +55,7 @@ class _OversizedJsonInteger:
 @dataclass
 class Options:
     cross_terms: str = "full"
+    parameter_profile: str = DEFAULT_PARAMETER_PROFILE
     ti_handling: str = "exclude_renormalize"
     sio2_conversion: str = "workbook"
     fe2o3_conversion: ConversionSpec | None = None
@@ -62,6 +67,7 @@ class Options:
     def as_dict(self) -> dict:
         return {
             "cross_terms": self.cross_terms,
+            "parameter_profile": self.parameter_profile,
             "ti_handling": self.ti_handling,
             "sio2_conversion": self.sio2_conversion,
             "fe2o3_conversion": _conversion_as_dict(self.fe2o3_conversion),
@@ -131,6 +137,13 @@ def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[
     if cross_terms not in ("full", "major5"):
         raise InputError(f"cross_terms must be 'full' or 'major5', got {cross_terms!r}")
 
+    parameter_profile = raw.get("parameter_profile", DEFAULT_PARAMETER_PROFILE)
+    if not isinstance(parameter_profile, str) or parameter_profile not in PARAMETER_PROFILES:
+        raise InputError(
+            "parameter_profile must be one of "
+            f"{sorted(PARAMETER_PROFILES)}, got {parameter_profile!r}"
+        )
+
     ti_handling = raw.get("ti_handling", "exclude_renormalize")
     if ti_handling not in ("exclude_renormalize", "as_excel"):
         raise InputError(
@@ -166,6 +179,7 @@ def _parse_options(raw: dict | None, warnings: list[str]) -> tuple[Options, set[
 
     return Options(
         cross_terms=cross_terms,
+        parameter_profile=parameter_profile,
         ti_handling=ti_handling,
         sio2_conversion=sio2_conversion,
         fe2o3_conversion=fe2o3,
@@ -383,10 +397,16 @@ def build_report(cfg: SlagModelConfig, result) -> dict:
         "Q_over_K_FeO": result.q_over_k.get("FeO"),
         "Q_over_K_CO": result.q_over_k.get("CO"),
         "Q_over_K_Cr": result.q_over_k.get("Cr"),
+        "enforced_relations": (
+            ["FeO", "CO", "Cr", "Fe_redox"]
+            if result.calculation_mode == "coupled"
+            else ["Cr", "Fe_redox"]
+        ),
     }
 
     return {
         "schema_version": 2,
+        "parameter_profile": dict(PARAMETER_PROFILE_METADATA[cfg.options.parameter_profile]),
         "input": {
             "temperature_K": cfg.temperature_K,
             "P_CO_atm": cfg.P_CO_atm,
@@ -395,6 +415,7 @@ def build_report(cfg: SlagModelConfig, result) -> dict:
             "options": cfg.options.as_dict(),
         },
         "solution": {
+            "calculation_mode": result.calculation_mode,
             "P_O2_atm": result.P_O2_atm,
             "log10_P_O2": math.log10(result.P_O2_atm),
             "r_Fe": result.r_Fe,
@@ -406,6 +427,19 @@ def build_report(cfg: SlagModelConfig, result) -> dict:
         "metal": {
             "C_wtpc": result.C_wtpc,
             "O_wtpc": result.O_wtpc,
+            "O_FeO_equivalent_wtpc": result.O_FeO_equivalent_wtpc,
+            "oxygen_diagnostic": {
+                "status": (
+                    "approximate_FeO_equilibrium"
+                    if result.calculation_mode == "coupled"
+                    else "FeO_equivalent_only"
+                ),
+                "basis": {
+                    "activity_ratio": "a_FeO/a_Fe",
+                    "oxygen_activity_coefficient": "f_O=1",
+                    "saturation_fit": "inherited empirical liquid-iron saturation fit",
+                },
+            },
             "f_C": result.f_metal["C"],
             "f_Cr": result.f_metal["Cr"],
             "f_Mn": result.f_metal["Mn"],

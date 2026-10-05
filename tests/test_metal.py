@@ -7,7 +7,12 @@ import math
 import pytest
 
 from slag_model.equilibrium import k_CO
-from slag_model.metal import balanced_carbon, carbon_fixed_point, wipf_factors
+from slag_model.metal import (
+    balanced_carbon,
+    carbon_fixed_point,
+    dissolved_oxygen,
+    wipf_factors,
+)
 
 T = 1823.15
 METAL = {"Cr": 0.038, "Mn": 0.007, "P": 0.069}
@@ -26,12 +31,26 @@ def test_wipf_log_fCr():
 
 def test_wipf_log_fMn():
     f = wipf_factors(METAL, C_VAL)
-    assert math.log10(f["Mn"]) == pytest.approx(-0.0005, abs=5e-4)
+    assert math.log10(f["Mn"]) == pytest.approx(-0.0015015, rel=0.0, abs=1e-12)
 
 
 def test_wipf_log_fP():
     f = wipf_factors(METAL, C_VAL)
     assert math.log10(f["P"]) == pytest.approx(0.0012, abs=5e-4)
+
+
+def test_wipf_manganese_carbon_factor_uses_compiled_parameter():
+    f = wipf_factors({}, C_wtpc=0.5)
+    assert f["Mn"] == pytest.approx(10.0 ** (-0.07 * 0.5), rel=1e-13)
+    assert f["C"] == pytest.approx(10.0 ** (0.14 * 0.5), rel=1e-13)
+
+
+def test_dissolved_oxygen_accounts_for_iron_activity():
+    expected = (0.3 / 0.8) * 10.0 ** (-6320.0 / 1823.15 + 2.734)
+    assert dissolved_oxygen(0.3, 1823.15, a_Fe=0.8) == pytest.approx(expected, rel=1e-14)
+    assert dissolved_oxygen(0.3, 1823.15) == pytest.approx(
+        0.3 * 10.0 ** (-6320.0 / 1823.15 + 2.734), rel=1e-14
+    )
 
 
 def test_balanced_carbon_fixed_point():

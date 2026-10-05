@@ -13,7 +13,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SLAG_PATH = ROOT / "examples" / "eaf_slag_01.json"
 
 # RTln(gamma_RS) values from the reference workbook at P_O2 = 1e-9 atm,
-# cross_terms="major5", ti_handling="as_excel", sio2_conversion="workbook".
+# cross_terms="major5", ti_handling="as_excel", sio2_conversion="workbook",
+# parameter_profile="legacy_workbook_typo_hybrid_v1".
 EXPECTED_RTLN = {
     "Fe2+": 4031.71,
     "Fe3+": -9027.69,
@@ -35,6 +36,7 @@ def workbook_state():
     cfg.options.cross_terms = "major5"
     cfg.options.ti_handling = "as_excel"
     cfg.options.sio2_conversion = "workbook"
+    cfg.options.parameter_profile = "legacy_workbook_typo_hybrid_v1"
     state, _ = compute_state(
         cfg,
         r_Fe=0.13073478698367935,

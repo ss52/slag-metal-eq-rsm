@@ -61,10 +61,12 @@ class SolveResult:
     f_metal: dict[str, float]
     a_C: float
     a_Cr: float
-    O_wtpc: float
+    O_wtpc: float | None
     k_FeO: float
     k_CO: float
     k_Cr: float
+    O_FeO_equivalent_wtpc: float
+    calculation_mode: str = "coupled"
     q_over_k: dict[str, float | None] = field(default_factory=dict)
 
 
@@ -118,7 +120,7 @@ def compute_state(
 
     split = split_slag(cfg.slag_wtpc, o.iron_input, o.chromium_input, r_Fe, r_Cr)
     X, N = cation_fractions(split.n_cations, o.ti_handling)
-    rtln_rs = rsm_gamma_rtln(X, o.cross_terms)
+    rtln_rs = rsm_gamma_rtln(X, o.cross_terms, parameter_profile=o.parameter_profile)
     activities = build_slag_activities(
         rtln_rs,
         X,
@@ -188,10 +190,11 @@ def compute_state(
         f_metal=f,
         a_C=a_C,
         a_Cr=a_Cr,
-        O_wtpc=dissolved_oxygen(a_FeO, T),
+        O_wtpc=dissolved_oxygen(a_FeO, T, a_Fe),
         k_FeO=k_FeO_val,
         k_CO=k_CO_val,
         k_Cr=k_Cr(T),
+        O_FeO_equivalent_wtpc=dissolved_oxygen(a_FeO, T, a_Fe),
         q_over_k=q_over_k,
     )
     targets = {"r_Fe": r_Fe_n, "r_Cr": r_Cr_n, "C": C_n}
@@ -200,6 +203,16 @@ def compute_state(
 
 def _relative_changes(targets: dict[str, float], current: dict[str, float]) -> dict[str, float]:
     return {k: abs(targets[k] - current[k]) / max(abs(current[k]), 1.0e-12) for k in targets}
+
+
+def _set_fixed_po2_diagnostics(cfg, result: SolveResult, P_O2: float) -> None:
+    """Keep returned pressure-dependent diagnostics on the imposed fixed-P basis."""
+    result.P_O2_atm = P_O2
+    result.calculation_mode = "fixed_P_O2"
+    result.O_wtpc = None
+    result.O_FeO_equivalent_wtpc = dissolved_oxygen(result.a_FeO, cfg.temperature_K, result.a_Fe)
+    result.q_over_k["FeO"] = (result.a_FeO / (result.a_Fe * math.sqrt(P_O2))) / result.k_FeO
+    result.q_over_k["CO"] = (cfg.P_CO_atm / (result.a_C * math.sqrt(P_O2))) / result.k_CO
 
 
 def solve(cfg) -> SolveResult:
@@ -255,6 +268,7 @@ def solve_redox_fixed_po2(cfg, P_O2: float, C: float = 0.018) -> SolveResult:
         current = {"r_Fe": r_Fe, "r_Cr": r_Cr, "C": C, "P_O2": P_O2}
         _check_finite(current, f"fixed-P iteration {it}.iterates")
         current_state, _ = _checked_compute_state(cfg, r_Fe, r_Cr, C, it)
+        _set_fixed_po2_diagnostics(cfg, current_state, P_O2)
         # r_Fe target from Ban-ya Eq. 24 at the EXTERNAL P_O2 (overwrite the
         # slag-derived one used inside compute_state).
         try:
@@ -293,7 +307,7 @@ def solve_redox_fixed_po2(cfg, P_O2: float, C: float = 0.018) -> SolveResult:
         if rel_fe < CONVERGENCE_TOL and rel_cr < CONVERGENCE_TOL:
             final, _ = _checked_compute_state(cfg, r_Fe_n, r_Cr_n, C, it)
             final.iterations = it
-            final.P_O2_atm = P_O2  # diagnostic honesty
+            _set_fixed_po2_diagnostics(cfg, final, P_O2)
             _check_finite(final, f"fixed-P iteration {it}.result")
             return final
         updated = {

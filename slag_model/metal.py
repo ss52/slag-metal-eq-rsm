@@ -63,9 +63,9 @@ def carbon_fixed_point(
     return C, wipf_factors(metal_wtpc, C)["C"]
 
 
-def dissolved_oxygen(a_FeO: float, T: float) -> float:
-    """Dissolved oxygen diagnostic [%O] = a_FeO * [%O]_sat (PLAN.md 7.9)."""
-    return a_FeO * 10.0 ** (O_SAT_T_COEF / T + O_SAT_CONSTANT)
+def dissolved_oxygen(a_FeO: float, T: float, a_Fe: float = 1.0) -> float:
+    """Approximate FeO-equilibrium oxygen diagnostic with f_O assumed unity."""
+    return (a_FeO / a_Fe) * 10.0 ** (O_SAT_T_COEF / T + O_SAT_CONSTANT)
 
 
 def x_fe_metal(metal_wtpc: dict[str, float], C_wtpc: float) -> float:

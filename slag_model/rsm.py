@@ -9,13 +9,14 @@ import numpy as np
 
 from .constants import CATIONS_PER_FORMULA, MOLAR_MASS_ELEMENT, MOLAR_MASS_OXIDE, R
 from .data import (
-    ALPHA,
     CATION_ORDER,
     CATION_TO_OXIDE,
     CONVERSION_DEFAULTS,
     CONVERSION_STANDARD_STATES,
+    DEFAULT_PARAMETER_PROFILE,
     INPUT_OXIDE_KEYS,
     OXIDE_TO_CATION,
+    PARAMETER_PROFILES,
     SIO2_CONVERSION_STANDARD_STATES,
     SIO2_CONVERSIONS,
 )
@@ -149,23 +150,32 @@ def _pair_indices(cross_terms: str) -> list[tuple[int, int]]:
     raise ValueError(f"unknown cross_terms: {cross_terms!r}")
 
 
-def rsm_gamma_rtln(X: dict[str, float], cross_terms: str) -> dict[str, float]:
+def rsm_gamma_rtln(
+    X: dict[str, float],
+    cross_terms: str,
+    parameter_profile: str = DEFAULT_PARAMETER_PROFILE,
+) -> dict[str, float]:
     """RSM activity coefficients on the regular-solution scale (PLAN.md 7.3).
 
     Returns R*T*ln(gamma_i^RS) in J/mol for each cation in CATION_ORDER.
     """
+    try:
+        alpha = PARAMETER_PROFILES[parameter_profile]
+    except KeyError as exc:
+        raise ValueError(f"unknown parameter_profile: {parameter_profile!r}") from exc
+
     Xv = np.array([X.get(c, 0.0) for c in CATION_ORDER])
     pairs = _pair_indices(cross_terms)
 
     out: dict[str, float] = {}
     for i, cation in enumerate(CATION_ORDER):
         # sum_j alpha_ij * X_j^2 (alpha_ii = 0 so the i term drops out)
-        s = float(np.sum(ALPHA[i, :] * Xv**2))
+        s = float(np.sum(alpha[i, :] * Xv**2))
         t = 0.0
         for j, k in pairs:
             if i in (j, k):
                 continue
-            t += (ALPHA[i, j] + ALPHA[i, k] - ALPHA[j, k]) * Xv[j] * Xv[k]
+            t += (alpha[i, j] + alpha[i, k] - alpha[j, k]) * Xv[j] * Xv[k]
         out[cation] = s + t
     return out
 

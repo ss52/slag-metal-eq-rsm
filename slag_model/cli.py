@@ -29,6 +29,7 @@ def _print_report(report: dict) -> None:
         print(f"    {k:12s} {v:10.4f}")
     print()
     print(f"  P_O2 = {sol['P_O2_atm']:.6e} atm  (log10 = {sol['log10_P_O2']:.4f})")
+    print(f"  calculation mode: {sol['calculation_mode']}")
     print(
         f"  r_Fe = {sol['r_Fe']:.6f}   r_Cr = {sol['r_Cr']:.6f}   iterations = {sol['iterations']}"
     )
@@ -75,7 +76,13 @@ def _print_report(report: dict) -> None:
 
     m = report["metal"]
     print("  Metal:")
-    print(f"    [%C] = {m['C_wtpc']:.4f}    [%O] = {m['O_wtpc']:.4f}")
+    oxygen = f"[%O] = {m['O_wtpc']:.4f}" if m["O_wtpc"] is not None else "[%O] = unavailable"
+    print(f"    [%C] = {m['C_wtpc']:.4f}    {oxygen}")
+    if m["O_wtpc"] is None:
+        print(
+            f"    FeO-equivalent [%O] = {m['O_FeO_equivalent_wtpc']:.4f} "
+            "(approximate diagnostic; not enforced)"
+        )
     print(
         f"    f_C = {m['f_C']:.5f}    f_Cr = {m['f_Cr']:.5f}"
         f"    f_Mn = {m['f_Mn']:.5f}    f_P = {m['f_P']:.5f}"
@@ -85,9 +92,12 @@ def _print_report(report: dict) -> None:
 
     eq = report["equilibrium"]
     print("  Equilibrium:")
+    print(f"    Enforced relations: {', '.join(eq['enforced_relations'])}")
+    if sol["calculation_mode"] == "fixed_P_O2":
+        print("    Q/K values are diagnostics; Fe-O and C-O are not enforced.")
     print(f"    K_FeO = {eq['K_FeO']:.4e}    K_CO = {eq['K_CO']:.4e}    K_Cr = {eq['K_Cr']:.4f}")
     print(
-        f"    Q/K :  Fe-O = {eq['Q_over_K_FeO']:.9f}"
+        f"    Q/K diagnostics:  Fe-O = {eq['Q_over_K_FeO']:.9f}"
         f"    C-O = {eq['Q_over_K_CO']:.9f}"
         f"    Cr  = {eq['Q_over_K_Cr']}"
     )

@@ -1,5 +1,144 @@
 # Thermodynamic and code audit
 
+## Current scientific status (2026-10-05)
+
+This section supersedes the open-finding and applicability claims in the dated
+audit below. It records the source/profile corrections and the Task 7 output
+contract; final integrated test counts are pending and are not asserted here.
+For active equations, report fields and exact tested inputs, use the current
+[`README.md`](../../README.md) and [`paper_cases.json`](paper_cases.json).
+
+### Critical
+
+The earlier C1–C4 corrections address chromium reaction units and the dissolved
+Cr standard state, consistent RS coefficients in Ban-ya Fe redox, formula-unit
+activities for P₂O₅/Al₂O₃, and non-finite input/output handling. These are distinct
+from empirical model validation. Conventional Al₂O₃ and FeO₁.₅ activities remain
+unavailable without labeled custom conversions; their RS activities are
+available. No new critical scientific finding is identified in the present
+source assessment at the tested points.
+
+### Normal
+
+- **Source profiles and evidence.** The default `banya93_xiao95_v1` uses the
+  corrected Ban-ya Fe³⁺–Ca²⁺ coefficient −95,810 J/mol and Xiao and Holappa
+  (1995) Ca²⁺–Si⁴⁺ coefficient −139,100 J/mol. The separate
+  `banya93_casi_xiao95cr_hybrid_v1` restores Ban-ya's −133,890 J/mol Ca–Si
+  value while retaining Xiao chromium terms. `legacy_workbook_typo_hybrid_v1`
+  preserves the historical workbook matrix, including −96,810 J/mol, and is
+  explicitly legacy. Reports carry profile identity/version; the old hybrid
+  and transcription findings are superseded by these named choices.
+- **Mn–C source correction.** Task 7 uses $e_{Mn}^{C}=-0.07$ while retaining
+  $e_C^{Mn}=-0.012$. The directly checked source is
+  [Lei, Fu and Xiong (2024), Table 1, p. 112](https://journals.pan.pl/Content/131630/AFE%202_2024_13-Final.pdf),
+  whose reference [22] is Chen's 2010 steelmaking databook. The original
+  Sigworth and Elliott (1974) table was not directly verified for this value;
+  Wagner coefficients are asymmetric.
+- **Mode-consistent diagnostics.** Task 7 identifies `solution.calculation_mode`
+  as `coupled` or `fixed_P_O2`. Every $Q/K$ is evaluated at the reported
+  pressure. Coupled mode enforces FeO, CO, Cr comproportionation and Fe-redox
+  relations; fixed mode imposes pressure and carbon, enforcing only Cr
+  comproportionation and Fe redox. Reports list these under
+  `equilibrium.enforced_relations`; fixed-mode FeO/CO quotients are diagnostics,
+  not enforced equilibrium claims.
+- **Chromium–oxygen scope qualification — documented.** The implemented Cr
+  relation is Xiao and Holappa (1995) Eq. 9 comproportionation, not the independent
+  $CrO_{1.5}(s)=CrO(l)+\tfrac14 O_2(g)$ equilibrium in
+  [p. 324, Eqs. 14–15](https://www.pyrometallurgy.co.za/InfaconVII/319-Xiao.pdf).
+  Its valence constraint need not agree with the Fe-buffer oxygen potential.
+  In the default reference case, the reported Fe-buffer pressure is about
+  $3.72\times10^{-10}$ atm while Eq. 15 with the same oxide reference states
+  and calculated activities implies $9.06\times10^{-10}$ atm (2.44 times
+  higher), giving Cr–O $Q/K\approx0.80$ at the reported pressure. This is an
+  unenforced source-equation discrepancy, not roundoff or empirical fit scatter;
+  it is neither a measured validation result nor an accuracy tolerance.
+  `Q_over_K_Cr` checks only the implemented comproportionation identity.
+  The overbroad common-oxygen redox scope claim is corrected in the
+  documentation; no additional model relation, calibration or program behavior
+  has been introduced. The implemented numerical relations remain unchanged,
+  and the calculation does not establish complete slag–metal redox equilibrium.
+- **Approximate oxygen estimate.** The selected iron activity is used in
+  $[\%O]_{FeO\ equivalent}=(a_{FeO}/a_{Fe})10^{-6320/T+2.734}$, assuming
+  $f_O=1$ and retaining an inherited empirical saturation fit. Coupled mode
+  reports this approximate value as both `O_wtpc` and
+  `O_FeO_equivalent_wtpc`. Fixed mode reports `O_wtpc=null` and labels the
+  separate estimate `FeO_equivalent_only`; it is not dissolved oxygen inferred
+  at the imposed pressure. The auxiliary FeO/CO, carbon-dissolution and
+  oxygen-saturation fits have incomplete directly verified provenance and do
+  not come from the two oxide papers.
+- **Prescribed composition and validation scope.** The solver fixes slag
+  elemental Fe/Cr totals, metal Cr/Mn/P, temperature and $P_{CO}$, then solves
+  valence ratios and carbon. It has no phase masses, slag/metal mass ratio,
+  gas inventory or coupled element transfer. Selected equilibrium identities
+  therefore do not establish closed-system equilibration or Mn/P partition
+  coefficients. The reference EAF assay at 1823.15 K and $P_{CO}=1$ atm,
+  with Cr 0.038, Mn 0.007 and P 0.069 wt% in the metal and solved C about
+  0.0308 wt%, is computational regression evidence. The exact assay is in
+  `examples/eaf_slag_01.json`; it is not an experimental full-solver case.
+- **Paper comparison scope.** The active oxide sources are Ban-ya (1993) and
+  Xiao and Holappa (1995). Ban-ya's chromium-free equimolar CaO–SiO₂ check at
+  1823 K, with −133,890 J/mol Ca–Si and β-cristobalite conversion, gives
+  equation-derived $a_{SiO_2}=0.2575019792$ and $a_{CaO}=0.01103118178$.
+  No complete source-exact measured Ban-ya 1993 row is available in this pack.
+  All eleven Xiao Table 1 SiO₂–CrO–CrO₁.₅ activity comparisons at 1873 K use
+  observed valence splits and parameter-assessment data, so they are in-sample.
+  Mean absolute relative differences remain 20.4% CrO, 12.6% CrO₁.₅ and
+  37.4% against Gibbs–Duhem-derived SiO₂; T1-10 CrO is −54.67%. No empirical
+  acceptance envelope or complete coupled-model validation is established.
+- **Applicability limitations.** Ban-ya's approximate liquid-slag model has
+  composition-dependent applicability; this implementation does not predict
+  solid phases, spinel or phase separation. Xiao chromium parameters cover
+  studied Ca–Si–Mg–Al–Cr systems; missing Fe–Cr, Mn–Cr and P–Cr interactions
+  are assumed zero, so Fe-rich chromium slags are extrapolations. Ti exclusion
+  and renormalization is an approximation; `as_excel` is denominator-only
+  dilution without Ti activity. The published nonzero Ti interactions are not
+  used and no universal safe Ti wt% limit is supported. First-order metal
+  coefficients at 1873 K are approximately applied at 1823.15 K; carbon-rich
+  hot metal, including 3–5 wt% C, remains unvalidated. These tested points and
+  source systems do not define a validated temperature/composition box. This
+  disclosure addresses the scientific scope of archived N11; adding separate
+  runtime applicability warnings is optional deferred work.
+- **Deferred numerical findings.** The chromium ratio root uses a
+  $10^{-6}$–$10^6$ bracket and subtraction can lose trace species near
+  roundoff. Extreme roots and trace fractions outside the tested examples
+  require further tests. These are deferred normal findings under the
+  scientific release scope, not release blockers for the stated tested points.
+- **Open ordinary input warning.** Element-total assays can still trigger a
+  false raw 100 wt% sum warning (archived N8). This affects a warning, not the
+  calculation, and is deferred under the focus on meaningful calculated
+  results. It is not claimed fixed or treated as a tested-point release
+  blocker, unlike the calculation-output errors addressed by Task 7.
+
+### Low
+
+The original audit and its dated verification results below are retained as
+history. Their line numbers, test counts, earlier matrices, Ban-ya 1985/Xiao
+2002 active-benchmark claims and repair order do not describe the current pack.
+The remaining archived silica-polymorph label and other maintenance notes are
+low priority and are not evidence of empirical accuracy. No human-prose tests
+or new numerical acceptance threshold are introduced by this documentation
+update; final integration verification is recorded separately.
+
+## Source-benchmark correction (2026-09-25)
+
+This note supersedes the benchmark-source and validation claims in the dated
+audit below. The active pack uses Ban-ya 1993 for equations, interaction energies
+and conversions, and all eleven Xiao and Holappa 1995 Table 1 cases. Ban-ya 1993
+has no source-exact measured numerical row here. The Xiao Table 1 rows were used
+in assessing the paper's Table 2 parameters, so calculated comparisons are
+in-sample, not independent validation. The paper's CrO and CrO1.5 activities
+come from EMF/oxygen-potential measurements; its SiO2 activities were calculated
+by Gibbs-Duhem. Current mean absolute relative differences are 20.4% for CrO,
+12.6% for CrO1.5, and 37.4% versus those Gibbs-Duhem SiO2 values; T1-10 CrO is
+54.67% below the reported activity. Xiao 1995 p. 321 also notes that the liquid
+CrO formation relation was extrapolated from 1665-1750 C to the 1600 C
+measurements.
+
+Everything below this notice is an archived audit snapshot kept for history.
+Its older source-data, benchmark, interaction-matrix, and open-finding claims
+are superseded; use the current README and `paper_cases.json` for active
+parameter profiles and source provenance.
+
 Date: 2026-09-23  
 Repository: `slag-activity-model` 0.1.0  
 Scope: equations, standard states, source-data transcription, numerical solver,

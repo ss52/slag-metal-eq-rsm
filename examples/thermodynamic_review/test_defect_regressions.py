@@ -39,10 +39,6 @@ def test_chromium_ratio_keeps_trace_roots():
     assert reconstructed == pytest.approx(rhs, rel=1e-8, abs=0.0)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known defect: fixed-P_O2 diagnostics use a different pressure.",
-)
 def test_fixed_po2_diagnostics_use_reported_pressure():
     config = load_input(REFERENCE_INPUT)
     state = solve_redox_fixed_po2(config, P_O2=1.0e-9, C=0.018)
@@ -50,6 +46,10 @@ def test_fixed_po2_diagnostics_use_reported_pressure():
     q_co = (config.P_CO_atm / (state.a_C * math.sqrt(state.P_O2_atm))) / k_CO(config.temperature_K)
     assert state.q_over_k["FeO"] == pytest.approx(q_fe, rel=1e-12)
     assert state.q_over_k["CO"] == pytest.approx(q_co, rel=1e-12)
+    expected_o_feo = (state.a_FeO / state.a_Fe) * 10.0 ** (-6320.0 / config.temperature_K + 2.734)
+    assert state.calculation_mode == "fixed_P_O2"
+    assert state.O_wtpc is None
+    assert state.O_FeO_equivalent_wtpc == pytest.approx(expected_o_feo, rel=1e-12)
 
 
 def test_custom_conversion_report_round_trip():

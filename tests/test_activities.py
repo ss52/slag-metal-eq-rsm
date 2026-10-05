@@ -106,15 +106,13 @@ def test_source_qualified_states_preserve_paper_phases_and_rs_species():
     assert result.standard_state_by_species["CaO"] == ("CaO(s), Ban-ya (1993) Table 3")
     assert result.standard_state_by_species["MgO"] == ("MgO(s), Ban-ya (1993) Table 3")
     assert result.standard_state_by_species["MnO"] == ("MnO(s), Ban-ya (1993) Table 3")
-    assert result.standard_state_by_species["CrO"] == (
-        "CrO(liq), Xiao, Holappa & Reuter (2002) Table IV"
-    )
+    assert result.standard_state_by_species["CrO"] == ("CrO(liquid), Xiao & Holappa (1995) Table 3")
     assert result.standard_state_by_species["CrO1.5"] == (
-        "CrO1.5(s), Xiao, Holappa & Reuter (2002) Table IV"
+        "CrO1.5(solid), Xiao & Holappa (1995) Table 3"
     )
     workbook_silica = build_slag_activities(
         {"Si4+": 0.0}, {"Si4+": 0.1}, 1873.0, sio2_conversion="workbook"
     )
     assert workbook_silica.standard_state_by_species["SiO2"] == (
-        "SiO2(s), polymorph unspecified; Xiao, Holappa & Reuter (2002) Table IV"
+        "SiO2(solid), polymorph unspecified; Xiao & Holappa (1995), silica-in-lime-silica section"
     )
